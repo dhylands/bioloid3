@@ -62,7 +62,7 @@ class Command(object):
 
     def __repr__(self):
         """Return a python parsable representation of ourselves."""
-        return 'Bioloidcommand(0x%02x)'.format(self.cmd)
+        return 'Command(0x%02x)'.format(self.cmd)
 
     def __str__(self):
         """Return a human readable representation of ourselves."""

@@ -5,10 +5,7 @@
 import os
 import struct
 import sys
-import time
 from bus import Bus
-
-LED_OFFSET = 0x19
 
 class Scanner(object):
 
@@ -28,50 +25,20 @@ class Scanner(object):
             self.ids.append(dev_id)
 
 
-def test(bus):
-    # Scan the bus (tests PING and READ)
-
-    print('Scan the bus (tests PING and READ)')
-    scanner = Scanner(bus)
+def scan(bus):
+    print('Scanning IDs 0-32...')
+    scanner = Scanner(bus, 0, 32)
     if len(scanner.ids) == 0:
         print('No bioloid servos detected')
-        sys.exit()
-
-    print('Cycle through the LEDs (tests WRITE)')
-    for i in range(4):
-        for dev_id in scanner.ids:
-            bus.write(dev_id, LED_OFFSET, bytearray((1,)))
-            time.sleep(0.25)
-            bus.write(dev_id, LED_OFFSET, bytearray((0,)))
-            time.sleep(0.25)
-
-    time.sleep(1)
-
-    print('Turn all LEDs on and off simultaneously (tests REG_WRITE and ACTION)')
-    for i in range(4):
-        for dev_id in scanner.ids:
-            bus.write(dev_id, LED_OFFSET, bytearray((1,)), deferred=True)
-        bus.action()
-        time.sleep(0.25)
-        for dev_id in scanner.ids:
-            bus.write(dev_id, LED_OFFSET, bytearray((0,)), deferred=True)
-        bus.action()
-        time.sleep(0.25)
-
-    time.sleep(1)
-
-    print('Turn all LEDs on and off simultaneously (tests SYNC_WRITE)')
-    for i in range(4):
-        bus.sync_write(scanner.ids, LED_OFFSET, [bytearray((1,))] * len(scanner.ids))
-        time.sleep(0.25)
-        bus.sync_write(scanner.ids, LED_OFFSET, [bytearray((0,))] * len(scanner.ids))
-        time.sleep(0.25)
+    scanner2 = Scanner(bus, 100, 32)
+    if len(scanner2.ids) == 0:
+        print('No bioloid sensors detected')
 
 def pyboard_main():
     from stm_uart_port import UART_Port
     serial_port = UART_Port(6, 1000000)
     bus = Bus(serial_port, show_packets=False)
-    test(bus)
+    scan(bus)
 
 
 def linux_main():
@@ -149,7 +116,7 @@ def linux_main():
             print("Unable to open port '{}'".format(port))
             sys.exit()
     bus = Bus(dev_port, show_packets=show_packets)
-    test(bus)
+    scan(bus)
 
 
 def main():

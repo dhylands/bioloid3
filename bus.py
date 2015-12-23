@@ -1,5 +1,5 @@
-"""This module provides the bioloid.Bus abstract base class for
-implementing bioloid busses.
+"""This module provides the Bus class which knows how to talk to Bioloid
+   devices.
 
 """
 
@@ -23,14 +23,10 @@ class BusError(Exception):
 
 
 class Bus(object):
-    """Abstract base class for a bioloid bus.
+    """The Bus class knows the commands used to talk to bioloid devices."""
 
-    Essentially there is avbus for each UART (or other bus) which has
-    bioloid devices attached.
-
-    """
-
-    def __init__(self, show_packets):
+    def __init__(self, serial_port, show_packets):
+        self.serial_port = serial_port
         self.show_packets = show_packets
 
     def action(self):
@@ -62,7 +58,7 @@ class Bus(object):
         pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
         if self.show_packets:
             dump_mem(pkt_bytes, prefix='  W', show_ascii=False)
-        self.write_packet(pkt_bytes)
+        self.serial_port.write_packet(pkt_bytes)
 
     def ping(self, dev_id):
         """Sends a PING request to a device.
@@ -90,20 +86,6 @@ class Bus(object):
         pkt = self.read_status_packet()
         return pkt.params()
 
-    def read_byte(self):
-        """Reads a byte from the bus. This function will return None if
-        no character was read within the designated timeout.
-
-        The max Return Delay time is 254 x 2 usec = 508 usec (the
-        default is 500 usec). This represents the minimum time between
-        receiving a packet and sending a response.
-
-        It is expected that a derived function will actually implement
-        this function.
-
-        """
-        raise NotImplementedError
-
     def read_status_packet(self):
         """Reads a status packet and returns it.
 
@@ -112,7 +94,7 @@ class Bus(object):
         """
         pkt = packet.Packet()
         while True:
-            byte = self.read_byte()
+            byte = self.serial_port.read_byte()
             if byte is None:
                 raise BusError(packet.ErrorCode.TIMEOUT)
             err = pkt.process_byte(byte)
@@ -245,12 +227,3 @@ class Bus(object):
             return packet.ErrorCode.NONE
         pkt = self.read_status_packet()
         return pkt.error_code()
-
-    def write_packet(self, packet_data):
-        """Function implemented by a derived class which actually writes
-        the data to a device.
-
-        It is expected that a derived function will actually implement
-        this function.
-        """
-        raise NotImplementedError
