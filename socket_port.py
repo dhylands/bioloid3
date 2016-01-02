@@ -9,6 +9,7 @@ class SocketPort(object):
 
     def __init__(self, skt):
         self.socket = skt
+        self.baud = 0
 
     def read_byte(self, block=False):
         """Reads a byte from the bus. This function will return None if
@@ -30,6 +31,7 @@ class SocketPort(object):
 
     def set_baud(self, baud):
         """Baud doesn't really mean anything for a network socket."""
+        self.baud = baud
         print('Baud set to: {}'.format(baud))
 
     def write_packet(self, packet_data):

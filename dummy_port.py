@@ -1,5 +1,5 @@
 """This module implements a dummy port class which simulates talking to
-devices on the bioloid device.
+devices on the bioloid device.s
 
 """
 

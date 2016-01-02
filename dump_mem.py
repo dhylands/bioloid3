@@ -1,5 +1,6 @@
 """Provides the dump_mem function, which dumps memory in hex/ASCII."""
 
+from log import log
 
 def dump_mem(buf, prefix="", address=0, line_width=16, show_ascii=True,
              show_addr=True):
@@ -9,7 +10,7 @@ def dump_mem(buf, prefix="", address=0, line_width=16, show_ascii=True,
     if len(prefix) > 0:
         prefix += ': '
     if len(buf) == 0:
-        print(prefix + 'No data')
+        log(prefix + 'No data')
         return
     buf_len = len(buf)
     for offset in range(0, buf_len, line_width):
@@ -38,6 +39,6 @@ def dump_mem(buf, prefix="", address=0, line_width=16, show_ascii=True,
         else:
             # Remove the trailing space after the last hex
             out_line = out_line[0:-1]
-        print(out_line)
+        log(out_line)
         address += line_width
 

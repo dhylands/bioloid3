@@ -3,6 +3,7 @@
 
 """
 
+from log import log
 import packet
 from dump_mem import dump_mem
 
@@ -36,7 +37,7 @@ class Bus(object):
 
         """
         if self.show_packets:
-            print('Broadcasting ACTION')
+            log('Broadcasting ACTION')
         self.fill_and_write_packet(packet.Id.BROADCAST, packet.Command.ACTION)
 
     def fill_and_write_packet(self, dev_id, cmd, data=None):
@@ -104,7 +105,7 @@ class Bus(object):
             raise BusError(err)
         if self.show_packets:
             dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False)
-            print('Rcvd Status: {}'.format(packet.ErrorCode(err)))
+            log('Rcvd Status: {}'.format(packet.ErrorCode(err)))
         err = pkt.error_code()
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
@@ -145,7 +146,7 @@ class Bus(object):
     def send_ping(self, dev_id):
         """Sends a ping to a device."""
         if self.show_packets:
-            print('Sending PING to ID {}'.format(dev_id))
+            log('Sending PING to ID {}'.format(dev_id))
         self.fill_and_write_packet(dev_id, packet.Command.PING)
 
     def send_read(self, dev_id, offset, num_bytes):
@@ -153,8 +154,8 @@ class Bus(object):
         table.
         """
         if self.show_packets:
-            print('Sending READ to ID {} offset 0x{:02x} len {}'.format(
-                   dev_id, offset, num_bytes))
+            log('Sending READ to ID {} offset 0x{:02x} len {}'.format(
+                dev_id, offset, num_bytes))
         self.fill_and_write_packet(dev_id, packet.Command.READ, bytearray((offset, num_bytes)))
 
     def send_reset(self, dev_id):
@@ -162,7 +163,7 @@ class Bus(object):
            control table to factory defaults.
         """
         if self.show_packets:
-            print('Sending RESET to ID {}'.format(self.dev_id))
+            log('Sending RESET to ID {}'.format(self.dev_id))
         self.fill_and_write_packet(dev_id, packet.Command.RESET)
 
     def send_write(self, dev_id, offset, data, deferred=False):
@@ -175,7 +176,7 @@ class Bus(object):
         Deferred writes will occur when and ACTION command is broadcast.
         """
         if self.show_packets:
-            print('Sending WRITE to ID {} offset 0x{:02x} len {}'.format(dev_id, offset, len(data)))
+            log('Sending WRITE to ID {} offset 0x{:02x} len {}'.format(dev_id, offset, len(data)))
         cmd = packet.Command.REG_WRITE if deferred else packet.Command.WRITE
         pkt_data = bytearray(len(data))
         pkt_data[0] = offset

@@ -4,14 +4,14 @@ import os
 import packet
 import struct
 from dump_mem import dump_mem
-
+from log import log
 
 class Register(object):
 
     RO = 0
     RW = 1
 
-    SIZE_FMT = (None, 'B', '<H')
+    SIZE_FMT = (None, 'B', '<H', None, '<I')
 
     def __init__(self, offset, size, access,
                  min_val=None, max_val=None, init_val=0,
@@ -45,13 +45,14 @@ class Register(object):
         # TODO: Implement struct.unpack_from
         self.val = struct.unpack(Register.SIZE_FMT[self.size], bytes)[0]
         if not self.update_fn is None:
-            self.update_fn(self.val)
+            self.update_fn(self)
 
     def validate_from_bytes(self, bytes):
         """Validates a value from a bytes object."""
         # TODO: Implement struct.unpack_from
         val = struct.unpack(Register.SIZE_FMT[self.size], bytes)[0]
-        if val < self.min_val or val > self.max_val:
+        if ((not self.min_val is None and val < self.min_val) or
+            (not self.max_val is None and val > self.max_val)):
             return packet.ErrorCode.RANGE
         if self.access != Register.RW:
             return packet.ErrorCode.RANGE
@@ -62,21 +63,16 @@ class Register(object):
 
 class ControlTable(object):
 
-    def __init__(self, reg_list, num_persistent_bytes):
+    def __init__(self, reg_list, num_persistent_bytes, filename):
         self.num_persistent_bytes = num_persistent_bytes
+        self.filename = filename
         self.num_ctl_bytes = 0
         for reg in reg_list:
             self.num_ctl_bytes = max(self.num_ctl_bytes, reg.offset + reg.size)
-        self.bytes = bytearray(self.num_ctl_bytes)
         self.reg = [None] * self.num_ctl_bytes
         for reg in reg_list:
             self.reg[reg.offset] = reg
         self.read_from_file()
-
-    def filename(self):
-        if os.uname().sysname == 'pyboard':
-            return '/flash/control_table.bin'
-        return 'control_table.bin'
 
     def regs(self, offset, length):
         """Generator which returns a register and a corresponding index into 'bytes'."""
@@ -102,7 +98,7 @@ class ControlTable(object):
 
     def read_from_file(self):
         try:
-            with open(self.filename(), 'rb') as f:
+            with open(self.filename, 'rb') as f:
                 persistent_bytes = f.read(self.num_persistent_bytes)
                 self.set_from_bytes(0, persistent_bytes, persist=False)
         except OSError: # CPython's FileNotFoundError is a subclass of OSError
@@ -133,12 +129,18 @@ class ControlTable(object):
 
     def write_to_file(self):
         persistent_bytes = self.get_as_bytes(0, self.num_persistent_bytes)
-        with open(self.filename(), 'wb') as f:
+        with open(self.filename, 'wb') as f:
             f.write(persistent_bytes)
 
 
 class Device(object):
     """Common code for implementing a Bioloid Device."""
+
+    MODEL_OFFSET    = 0
+    VERSION_OFFSET  = 2
+    DEV_ID_OFFSET   = 3
+    BAUD_OFFSET     = 4
+    RDT_OFFSET      = 5
 
     def __init__(self, dev_port, reg_list, num_persistent_bytes, show_packets=False):
         self.dev_port = dev_port
@@ -153,16 +155,20 @@ class Device(object):
 
         # Since model and version are device specific, the derived class
         # should provide the registers for these.
-        self.dev_id  = Register(3, 1, Register.RW, 0, 254,   1)
-        self.baud    = Register(4, 1, Register.RW, 0, 254,   1, self.baud_updated)
-        self.rdt     = Register(5, 1, Register.RW, 0, 254, 250)
+        self.dev_id  = Register(Device.DEV_ID_OFFSET, 1, Register.RW, 0, 254,   1)
+        self.baud    = Register(Device.BAUD_OFFSET,   1, Register.RW, 0, 254,   1, self.baud_updated)
+        self.rdt     = Register(Device.RDT_OFFSET,    1, Register.RW, 0, 254, 250)
 
-        regs = (self.model, self.version, self.dev_id, self.baud, self.rdt) + reg_list
-        self.control_table = ControlTable(regs, num_persistent_bytes)
+        regs = [self.dev_id, self.baud, self.rdt] + reg_list
 
-    def baud_updated(self, new_baud):
-        if self.baud.val != new_baud:
-            baud = 2000000 // (new_baud + 1)
+        ctl_filename = self.filebase() + '.ctl'
+        if os.uname().sysname == 'pyboard':
+            ctl_filename = '/flash/' + ctl_filename
+        self.control_table = ControlTable(regs, num_persistent_bytes, ctl_filename)
+
+    def baud_updated(self, reg):
+        baud = 2000000 // (reg.val + 1)
+        if self.dev_port.baud != baud:
             self.dev_port.set_baud(baud)
 
     def command_action(self, pkt):
@@ -242,13 +248,16 @@ class Device(object):
         """
         self.write_status_packet(packet.ErrorCode.INSTRUCTION)
 
+    def filebase(self):
+        return 'device'
+
     def packet_received(self, pkt):
         """Called when a valid packet has been received."""
         if pkt.dev_id != self.dev_id.val and pkt.dev_id != packet.Id.BROADCAST:
             # Not a packet for us
             return
         if self.show_packets:
-            print('Rcvd packet for ID: {} Cmd: {}'.format(pkt.dev_id, packet.Command(pkt.cmd)))
+            log('Rcvd packet for ID: {} Cmd: {}'.format(pkt.dev_id, packet.Command(pkt.cmd)))
             dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False)
         if pkt.cmd == packet.Command.PING:
             self.command_ping(pkt)

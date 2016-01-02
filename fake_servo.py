@@ -11,5 +11,8 @@ class FakeServo(Device):
         super().__init__(dev_port, regs, 24, show_packets)
         self.dev_id.val = dev_id
 
-    def led_updated(self, new_val):
-        print('LED', ('off', 'on')[new_val])
+    def filebase(self):
+        return 'fake-servo'
+
+    def led_updated(self, reg):
+        print('LED', ('off', 'on')[reg.val])
