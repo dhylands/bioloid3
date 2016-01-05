@@ -74,8 +74,13 @@ activity = Activity(GREEN_LED)
 host_uart = USB_Bus()
 device_uart = UART_Bus(device_uart_num, baud=1000000, show_packets=True)
 
+button = pyb.Switch()
+
 pkt = packet.Packet()
 rsp = packet.Packet()
+
+log('Pico Adapter - Bioloid Packet Forwarder')
+show_packets = False
 while True:
     heartbeat.process()
     activity.process()
@@ -83,7 +88,8 @@ while True:
     if byte is not None:
         rc = pkt.process_byte(byte)
         if rc != packet.ErrorCode.NOT_DONE:
-            #dump_mem(pkt.pkt_bytes, prefix='  H->D', show_ascii=False, log=log)
+            if show_packets:
+                dump_mem(pkt.pkt_bytes, prefix='  H->D', show_ascii=False, log=log)
             activity.kick()
             device_uart.write_packet(pkt.pkt_bytes)
 
@@ -93,12 +99,19 @@ while True:
         if rc != packet.ErrorCode.NOT_DONE:
             activity.kick()
             host_uart.write_packet(rsp.pkt_bytes)
-            #dump_mem(rsp.pkt_bytes, prefix='  D->H', show_ascii=False, log=log)
+            if show_packets:
+                dump_mem(rsp.pkt_bytes, prefix='  D->H', show_ascii=False, log=log)
 
     if repl_uart.any():
         byte = repl_uart.readchar()
         if byte == 3:  # Control-C
             log('Control-C')
             raise KeyboardInterrupt
+        elif byte == ord('d'):
+            show_packets = not show_packets
+            log('Show Packets:', show_packets)
+    if button():
+        log('Control-C via Button')
+        raise KeyboardInterrupt
     pyb.wfi()
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
