@@ -21,8 +21,7 @@ class Scanner(object):
         data = bus.read(dev_id, 0, 3)
         model, version = struct.unpack('<HB', data)
         print('ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
-        if model == 12:
-            self.ids.append(dev_id)
+        self.ids.append(dev_id)
 
 
 def scan(bus):
@@ -35,9 +34,9 @@ def scan(bus):
         print('No bioloid sensors detected')
 
 def pyboard_main():
-    from stm_uart_port import UART_Port
-    serial_port = UART_Port(6, 1000000)
-    bus = Bus(serial_port, show_packets=False)
+    from stm_uart_bus import UART_Bus
+    serial = UART_Bus(6, 1000000)
+    bus = Bus(serial, show_packets=False)
     scan(bus)
 
 

@@ -15,7 +15,7 @@ class Register(object):
 
     def __init__(self, offset, size, access,
                  min_val=None, max_val=None, init_val=0,
-                 update_fn=None, validate_fn=None):
+                 update_fn=None):
         self.offset = offset
         self.size = size
         self.access = access
@@ -23,7 +23,6 @@ class Register(object):
         self.max_val = max_val
         self.init_val = init_val
         self.update_fn = update_fn
-        self.validate_fn = validate_fn
         self.val = self.init_val
 
     def __repr__(self):
@@ -56,45 +55,29 @@ class Register(object):
             return packet.ErrorCode.RANGE
         if self.access != Register.RW:
             return packet.ErrorCode.RANGE
-        if not self.validate_fn is None:
-            return self.validate_fn(val)
+        # Removed validate_fn support since it wasn't being used
+        #if not self.validate_fn is None:
+        #    return self.validate_fn(val)
         return packet.ErrorCode.NONE
 
 
 class ControlTable(object):
 
-    def __init__(self, reg_list, num_persistent_bytes, filename):
+    def __init__(self, num_persistent_bytes, num_ctl_bytes, iniial_bytes, notifications, filename):
         self.num_persistent_bytes = num_persistent_bytes
         self.filename = filename
-        self.num_ctl_bytes = 0
-        for reg in reg_list:
-            self.num_ctl_bytes = max(self.num_ctl_bytes, reg.offset + reg.size)
-        self.reg = [None] * self.num_ctl_bytes
-        for reg in reg_list:
-            self.reg[reg.offset] = reg
-        self.read_from_file()
+        self.num_ctl_bytes = num_ctl_bytes
+        self.bytes = memoryview(bytearray(self.num_ctl_bytes))
+        self.initail_bytes = initial_bytes
+        self.notifications = sorted(notifications)
 
-    def regs(self, offset, length):
-        """Generator which returns a register and a corresponding index into 'bytes'."""
-        idx = 0
-        while idx < length:
-            reg = self.reg[offset]
-            if reg:
-                size = reg.size
-                yield reg, idx
-            else:
-                size = 1
-            idx += size
-            offset += size
+        self.read_from_file()
 
     def get_as_bytes(self, offset, length):
         """Returns a byte array containing register values from the registers
            between offset and offset + len - 1.
         """
-        bytes = bytearray(length)
-        for reg, idx in self.regs(offset, length):
-            bytes[idx:idx+reg.size] = reg.get_as_bytes()
-        return bytes
+        return self.bytes[offset:offest + length]
 
     def read_from_file(self):
         try:
@@ -107,30 +90,19 @@ class ControlTable(object):
             self.write_to_file()
 
     def reset(self):
-        for reg in self.reg:
-            if reg:
-                reg.val = reg.init_val
+        self.bytes[:] = self.initial_bytes
         self.write_to_file()
 
     def set_from_bytes(self, offset, bytes, persist=True):
         """Sets the register values in the control table from 'data'."""
-        for reg, idx in self.regs(offset, len(bytes)):
-            reg.set_from_bytes(bytes[idx:idx+reg.size])
+        self.bytes[offset:offset + length] = bytes
         if persist and offset < self.num_persistent_bytes:
             self.write_to_file()
-
-    def validate_from_bytes(self, offset, bytes):
-        """Validates the values in 'bytes'."""
-        for reg, idx in self.regs(offset, len(bytes)):
-            status = reg.validate_from_bytes(bytes[idx:idx+reg.size])
-            if status != packet.ErrorCode.NONE:
-                return status
-        return packet.ErrorCode.NONE
 
     def write_to_file(self):
         persistent_bytes = self.get_as_bytes(0, self.num_persistent_bytes)
         with open(self.filename, 'wb') as f:
-            f.write(persistent_bytes)
+            f.write(self.bytes[0:persistent_bytes])
 
 
 class Device(object):
@@ -164,6 +136,8 @@ class Device(object):
         ctl_filename = self.filebase() + '.ctl'
         if os.uname().sysname == 'pyboard':
             ctl_filename = '/flash/' + ctl_filename
+
+        print("Number of registers =", len(regs))
         self.control_table = ControlTable(regs, num_persistent_bytes, ctl_filename)
 
     def baud_updated(self, reg):

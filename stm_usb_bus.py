@@ -1,5 +1,5 @@
-"""This module implements a USB Serial bus class which talks to bioloid
-devices using USB Serial on the pyboard.
+"""This module implements a USB Serial bus class which allows bioloid
+devices to be implemented on a MicroPython board.
 
 """
 
@@ -39,6 +39,10 @@ class USB_Bus(Bus):
         self.baud = baud
         if self.show_packets:
             log('Baud set to: {}'.format(baud))
+
+    def write_byte(self, byte):
+        """Writes a single byte back to the host."""
+        self.serial.write(bytearray(byte))
 
     def write_packet(self, packet_data):
         """Function implemented by a derived class which actually writes
