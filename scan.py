@@ -35,7 +35,7 @@ def scan(bus):
 
 def pyboard_main():
     from stm_uart_bus import UART_Bus
-    serial = UART_Bus(6, 1000000)
+    serial = UART_Bus(2, 1000000)
     bus = Bus(serial, show_packets=False)
     scan(bus)
 

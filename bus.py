@@ -58,7 +58,7 @@ class Bus(object):
             pkt_bytes[5:packet_len - 1] = data
         pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
         if self.show_packets:
-            dump_mem(pkt_bytes, prefix='  W', show_ascii=False)
+            dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)
         self.serial_port.write_packet(pkt_bytes)
 
     def ping(self, dev_id):
@@ -104,7 +104,7 @@ class Bus(object):
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
         if self.show_packets:
-            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False)
+            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False, log=log)
             log('Rcvd Status: {}'.format(packet.ErrorCode(err)))
         err = pkt.error_code()
         if err != packet.ErrorCode.NONE:
