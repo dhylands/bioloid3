@@ -48,7 +48,29 @@ class HeartBeat:
             self.counter += 1
             self.counter %= 10
 
+class Activity:
+
+    def __init__(self, led):
+        self.led = led
+        self.led.off()
+        self.led_on = False
+        self.on_tick = 0
+        self.off_tick = 0
+
+    def process(self):
+        if self.led_on and pyb.elapsed_millis(self.on_tick) > 20:
+            self.led.off()
+            self.led_on = False
+            self.on_tick = pyb.millis()
+
+    def kick(self):
+        if not self.led_on and pyb.elapsed_millis(self.off_tick) > 20:
+            self.led.on()
+            self.led_on = True
+            self.off_tick = pyb.millis()
+
 heartbeat = HeartBeat(RED_LED)
+activity = Activity(GREEN_LED)
 host_uart = USB_Bus()
 device_uart = UART_Bus(device_uart_num, baud=1000000, show_packets=True)
 
@@ -56,17 +78,20 @@ pkt = packet.Packet()
 rsp = packet.Packet()
 while True:
     heartbeat.process()
+    activity.process()
     byte = host_uart.read_byte()
     if byte is not None:
         rc = pkt.process_byte(byte)
         if rc != packet.ErrorCode.NOT_DONE:
             #dump_mem(pkt.pkt_bytes, prefix='  H->D', show_ascii=False, log=log)
+            activity.kick()
             device_uart.write_packet(pkt.pkt_bytes)
 
     if device_uart.rx_enabled and device_uart.any():
         byte = device_uart.read_byte()
         rc = rsp.process_byte(byte)
         if rc != packet.ErrorCode.NOT_DONE:
+            activity.kick()
             host_uart.write_packet(rsp.pkt_bytes)
             #dump_mem(rsp.pkt_bytes, prefix='  D->H', show_ascii=False, log=log)
 
