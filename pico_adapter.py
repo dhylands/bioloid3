@@ -2,6 +2,7 @@
 
 import pyb
 import packet
+from bus import BusError
 
 from stm_usb_bus import USB_Bus
 from stm_uart_bus import UART_Bus
@@ -81,21 +82,28 @@ class Scanner(object):
     def dev_found(self, bus, dev_id):
         # We want to read the model and version, which is at offset 0, 1,
         # and 2 so we do it with a single read.
-        data = bus.read(dev_id, 0, 3)
+        try:
+            data = bus.read(dev_id, 0, 3)
+        except BusError:
+            log('Device {} READ timed out'.format(dev_id))
+            return
         model, version = struct.unpack('<HB', data)
         log('  ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
         self.ids.append(dev_id)
 
     def scan_range(self, start_id=1, num_ids=32):
         log('Scanning IDs from', start_id, 'to', start_id + num_ids)
-        self.bus.scan(start_id, num_ids, self.dev_found, None)
+        try:
+            self.bus.scan(start_id, num_ids, self.dev_found, None)
+        except BusError:
+            log('Timeout')
 
     def scan(self):
         self.ids = []
         self.scan_range(0, 32)
         self.scan_range(100, 32)
         if len(self.ids) == 0:
-            log('No devices found in range', start_id, 'to', start_id + num_ids)
+            log('No devices found')
         else:
             log('Scan done')
 

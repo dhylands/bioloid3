@@ -17,7 +17,7 @@ class UART_Bus(Bus):
         # The max Return Delay Time is 254 * 2 usec = 508 usec. The default
         # is 500 usec. So using a timeout of 2 ensures that we wait for
         # at least 1 msec before considering a timeout.
-        self.uart = UART(uart_num, baud, timeout=4)
+        self.uart = UART(uart_num, baud, timeout=20)
         self.uart_base = getattr(stm, 'USART{}'.format(uart_num))
         self.cr1_addr = self.uart_base + stm.USART_CR1
         self.rx_enabled = True

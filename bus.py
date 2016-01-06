@@ -2,6 +2,7 @@
    devices.
 
 """
+import pyb
 
 from log import log
 import packet
@@ -95,8 +96,15 @@ class Bus(object):
         """
         pkt = packet.Packet()
         while True:
+            start = pyb.micros()
             byte = self.serial_port.read_byte()
+            read_micros = pyb.elapsed_micros(start)
             if byte is None:
+                log('Timeout: read_byte took', read_micros, 'microseconds, pkt.byte_index =', pkt.byte_index)
+                if pkt.pkt_bytes is None:
+                    log('No packet yet')
+                else:
+                    dump_mem(pkt.pkt_bytes, prefix='Timeout', show_ascii=False, log=log)
                 raise BusError(packet.ErrorCode.TIMEOUT)
             err = pkt.process_byte(byte)
             if err != packet.ErrorCode.NOT_DONE:
