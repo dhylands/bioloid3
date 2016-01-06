@@ -5,7 +5,8 @@
 import os
 import struct
 import sys
-from bus import Bus
+from bus import Bus, BusError
+from log import log
 
 class Scanner(object):
 
@@ -18,7 +19,11 @@ class Scanner(object):
     def dev_found(self, bus, dev_id):
         # We want to read the model and version, which is at offset 0, 1,
         # and 2 so we do it with a single read.
-        data = bus.read(dev_id, 0, 3)
+        try:
+            data = bus.read(dev_id, 0, 3)
+        except BusError:
+            log('Device {} READ timed out'.format(dev_id))
+            return
         model, version = struct.unpack('<HB', data)
         print('ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
         self.ids.append(dev_id)
