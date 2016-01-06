@@ -63,6 +63,13 @@ class UART_Bus(Bus):
         the data to a device.
 
         """
-        self.disable_rx()
-        self.uart.write(packet_data)
-        self.enable_rx()
+        #self.disable_rx()
+        #self.uart.write(packet_data)
+        #self.enable_rx()
+        m16 = stm.mem16
+        uw = self.uart.write
+        ca = self.cr1_addr
+        m16[ca] &= ~0x04
+        uw(packet_data)
+        m16[ca] |= 0x04
+
