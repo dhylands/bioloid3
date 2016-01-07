@@ -4,8 +4,8 @@ import pyb
 import packet
 from bus import BusError
 
-from stm_usb_bus import USB_Bus
-from stm_uart_bus import UART_Bus
+from stm_usb_port import USB_Port
+from stm_uart_port import UART_Port
 
 from bus import Bus
 from dump_mem import dump_mem
@@ -35,42 +35,46 @@ log_to_uart(repl_uart)
 # go to the uart.
 pyb.repl_uart(repl_uart)
 
-class HeartBeat:
+class LedSequence:
 
-    def __init__(self, led):
+    def __init__(self, led, sequence, continuous=True):
         self.led = led
+        self.last_toggle = 0
+        self.sequence = sequence
+        self.continuous = continuous
+        self.seq_idx = -1
         self.led.off()
-        self.last_tick = pyb.millis()
-        self.counter = 0
+        if self.continuous:
+            self.kick()
 
     def process(self):
-        if pyb.elapsed_millis(self.last_tick) > 100:
-            self.last_tick = pyb.millis()
-            if self.counter <= 3:
-                self.led.toggle()
-            self.counter += 1
-            self.counter %= 10
-
-class Activity:
-
-    def __init__(self, led):
-        self.led = led
-        self.led.off()
-        self.led_on = False
-        self.on_tick = 0
-        self.off_tick = 0
-
-    def process(self):
-        if self.led_on and pyb.elapsed_millis(self.on_tick) > 20:
-            self.led.off()
-            self.led_on = False
-            self.on_tick = pyb.millis()
+        if self.seq_idx >= 0 and pyb.elapsed_millis(self.last_toggle) > self.sequence[self.seq_idx]:
+            self.led.toggle()
+            self.last_toggle = pyb.millis()
+            self.seq_idx += 1
+            if self.seq_idx >= len(self.sequence):
+                if self.continuous:
+                    self.seq_idx = 0
+                else:
+                    self.seq_idx = -1
+                    self.led.off()      # Just in case we got an odd length
 
     def kick(self):
-        if not self.led_on and pyb.elapsed_millis(self.off_tick) > 20:
+        if self.seq_idx < 0:
+            self.seq_idx = 0
             self.led.on()
-            self.led_on = True
-            self.off_tick = pyb.millis()
+            self.last_toggle = pyb.millis()
+
+class HeartBeat(LedSequence):
+
+    def __init__(self, led):
+        super().__init__(led, (20, 180, 20, 780), continuous=True)
+
+
+class Activity(LedSequence):
+
+    def __init__(self, led):
+        super().__init__(led, (20, 20), continuous=False)
 
 
 class Scanner(object):
@@ -110,8 +114,8 @@ class Scanner(object):
 
 heartbeat = HeartBeat(RED_LED)
 activity = Activity(GREEN_LED)
-host_uart = USB_Bus()
-device_uart = UART_Bus(device_uart_num, baud=1000000, show_packets=True)
+host_uart = USB_Port()
+device_uart = UART_Port(device_uart_num, baud=1000000)
 
 button = pyb.Switch()
 
@@ -119,7 +123,10 @@ pkt = packet.Packet()
 rsp = packet.Packet()
 
 log('Pico Adapter - Bioloid Packet Forwarder')
-show_packets = False
+log('Control-C - Quit')
+log('s - Scan Bus')
+log('d - Debug - Show Packets')
+show = Bus.SHOW_NONE
 while True:
     heartbeat.process()
     activity.process()
@@ -127,18 +134,18 @@ while True:
     if byte is not None:
         rc = pkt.process_byte(byte)
         if rc != packet.ErrorCode.NOT_DONE:
-            if show_packets:
-                dump_mem(pkt.pkt_bytes, prefix='  H->D', show_ascii=False, log=log)
             activity.kick()
             device_uart.write_packet(pkt.pkt_bytes)
+            if show & Bus.SHOW_PACKETS:
+                dump_mem(pkt.pkt_bytes, prefix='  H->D', show_ascii=False, log=log)
 
-    if device_uart.rx_enabled and device_uart.any():
+    if device_uart.any():
         byte = device_uart.read_byte()
         rc = rsp.process_byte(byte)
         if rc != packet.ErrorCode.NOT_DONE:
             activity.kick()
             host_uart.write_packet(rsp.pkt_bytes)
-            if show_packets:
+            if show & Bus.SHOW_PACKETS:
                 dump_mem(rsp.pkt_bytes, prefix='  D->H', show_ascii=False, log=log)
 
     if repl_uart.any():
@@ -147,10 +154,10 @@ while True:
             log('Control-C')
             raise KeyboardInterrupt
         elif byte == ord('d'):
-            show_packets = not show_packets
-            log('Show Packets:', show_packets)
+            show ^= Bus.SHOW_PACKETS
+            log('Show Packets:', bool(show & Bus.SHOW_PACKETS))
         elif byte == ord('s'):
-            Scanner(Bus(device_uart, show_packets)).scan()
+            Scanner(Bus(device_uart, show=show)).scan()
     if button():
         log('Control-C via Button')
         raise KeyboardInterrupt

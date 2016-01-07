@@ -1,12 +1,12 @@
-"""This module defines the packets sent to and from the devices on the
-bioloid bus.
+"""This module defines Packet class used to send packets to and from the
+devices on the bioloid bus.
 
 """
 
 from dump_mem import dump_mem
 
 
-class Id(object):
+class Id:
     """Constants for reserved IDs."""
 
     BROADCAST = 0xFE
@@ -35,7 +35,7 @@ class Id(object):
         return self.dev_id
 
 
-class Command(object):
+class Command:
     """Constants for the commands sent in a packet."""
 
     PING = 0x01         # Used to obatin a status packet
@@ -84,7 +84,7 @@ class Command(object):
         raise ValueError("Unrecognized command: '{}'".format(string))
 
 
-class ErrorCode(object):
+class ErrorCode:
     """Constants for the error codes used in response packets."""
 
     RESERVED = 0x80         # Reserved - set to zero
@@ -152,7 +152,7 @@ class ErrorCode(object):
         return result
 
 
-class Packet(object):
+class Packet:
     """Encapsulates the packets sent to and from the bioloid device."""
 
     def __init__(self):

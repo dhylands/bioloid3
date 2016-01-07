@@ -10,11 +10,9 @@ from log import log
 
 class Scanner(object):
 
-    def __init__(self, bus, start_id=1, num_ids=32):
-        self.scan_idx = 0
-        self.scan_spin = "-\\|/"
+    def __init__(self, bus):
+        self.bus = bus
         self.ids = []
-        bus.scan(start_id, num_ids, self.dev_found, None)
 
     def dev_found(self, bus, dev_id):
         # We want to read the model and version, which is at offset 0, 1,
@@ -25,25 +23,35 @@ class Scanner(object):
             log('Device {} READ timed out'.format(dev_id))
             return
         model, version = struct.unpack('<HB', data)
-        print('ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
+        log('  ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
         self.ids.append(dev_id)
+
+    def scan_range(self, start_id=1, num_ids=32):
+        log('Scanning IDs from', start_id, 'to', start_id + num_ids)
+        try:
+            self.bus.scan(start_id, num_ids, self.dev_found, None)
+        except BusError:
+            log('Timeout')
+
+    def scan(self):
+        self.ids = []
+        self.scan_range(0, 32)
+        self.scan_range(100, 32)
+        if len(self.ids) == 0:
+            log('No devices found')
+        else:
+            log('Scan done')
 
 
 def scan(bus):
-    print('Scanning IDs 0-32...')
-    scanner = Scanner(bus, 0, 32)
-    if len(scanner.ids) == 0:
-        print('No bioloid servos detected')
-    scanner2 = Scanner(bus, 100, 32)
-    if len(scanner2.ids) == 0:
-        print('No bioloid sensors detected')
+    scanner = Scanner(bus)
+    scanner.scan()
 
 def pyboard_main():
-    from stm_uart_bus import UART_Bus
-    serial = UART_Bus(2, 1000000)
-    bus = Bus(serial, show_packets=False)
+    from stm_uart_port import UART_Port
+    serial = UART_Port(2, 1000000)
+    bus = Bus(serial, show=Bus.SHOW_NONE)
     scan(bus)
-
 
 def linux_main():
     import argparse
@@ -95,13 +103,32 @@ def linux_main():
         help="Uses DummyPort",
         default=False
     )
+    parser.add_argument(
+        "--show-commands",
+        dest="show_commands",
+        action="store_true",
+        help="Show commands being sent/received",
+        default=False
+    )
+    parser.add_argument(
+        "--show-packets",
+        dest="show_packets",
+        action="store_true",
+        help="Show packets being sent/received",
+        default=False
+    )
     args = parser.parse_args(sys.argv[1:])
 
-    show_packets = args.verbose
+    show = Bus.SHOW_NONE
+    if args.show_commands:
+        show |= Bus.SHOW_COMMANDS
+    if args.show_packets:
+        show |= Bus.SHOW_PACKETS
+
     if args.dummy:
         from dummy_port import DummyPort
         dev_port = DummyPort()
-        show_packets = True
+        show = Bus.SHOW_COMMANDS | Bus.SHOW_PACKETS
     elif args.net:
         import socket
         from socket_port import SocketPort
@@ -119,7 +146,7 @@ def linux_main():
         except serial.serialutil.SerialException:
             print("Unable to open port '{}'".format(port))
             sys.exit()
-    bus = Bus(dev_port, show_packets=show_packets)
+    bus = Bus(dev_port, show=show)
     scan(bus)
 
 

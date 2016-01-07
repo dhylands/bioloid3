@@ -1,5 +1,6 @@
 """This module provides the Bus class which knows how to talk to Bioloid
-   devices.
+   devices, and the BusError exception which is raised when an error is
+   enountered.
 
 """
 import pyb
@@ -10,7 +11,7 @@ from dump_mem import dump_mem
 
 
 class BusError(Exception):
-    """Exception which is raised when non-successful status packet."""
+    """Exception which is raised when a non-successful status packet is received."""
 
     def __init__(self, error_code, *args, **kwargs):
         super(BusError, self).__init__(self, *args, **kwargs)
@@ -24,12 +25,16 @@ class BusError(Exception):
         return "Rcvd Status: " + str(packet.ErrorCode(self.error_code))
 
 
-class Bus(object):
+class Bus:
     """The Bus class knows the commands used to talk to bioloid devices."""
 
-    def __init__(self, serial_port, show_packets):
+    SHOW_NONE       = 0
+    SHOW_COMMANDS   = 0x01
+    SHOW_PACKETS    = 0x02
+
+    def __init__(self, serial_port, show=SHOW_NONE):
         self.serial_port = serial_port
-        self.show_packets = show_packets
+        self.show = show
 
     def action(self):
         """Broadcasts an action packet to all of the devices on the bus.
@@ -37,7 +42,7 @@ class Bus(object):
         at the same time.
 
         """
-        if self.show_packets:
+        if self.show & Bus.SHOW_COMMANDS:
             log('Broadcasting ACTION')
         self.fill_and_write_packet(packet.Id.BROADCAST, packet.Command.ACTION)
 
@@ -58,7 +63,7 @@ class Bus(object):
             pkt_bytes[3] += len(data)
             pkt_bytes[5:packet_len - 1] = data
         pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
-        if self.show_packets:
+        if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)
         self.serial_port.write_packet(pkt_bytes)
 
@@ -98,22 +103,17 @@ class Bus(object):
         while True:
             start = pyb.micros()
             byte = self.serial_port.read_byte()
-            read_micros = pyb.elapsed_micros(start)
             if byte is None:
-                log('Timeout: read_byte took', read_micros, 'microseconds, pkt.byte_index =', pkt.byte_index)
-                if pkt.pkt_bytes is None:
-                    log('No packet yet')
-                else:
-                    dump_mem(pkt.pkt_bytes, prefix='Timeout', show_ascii=False, log=log)
                 raise BusError(packet.ErrorCode.TIMEOUT)
             err = pkt.process_byte(byte)
             if err != packet.ErrorCode.NOT_DONE:
                 break
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
-        if self.show_packets:
-            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False, log=log)
+        if self.show & Bus.SHOW_COMMANDS:
             log('Rcvd Status: {}'.format(packet.ErrorCode(err)))
+        if self.show & Bus.SHOW_PACKETS:
+            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False, log=log)
         err = pkt.error_code()
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
@@ -153,7 +153,7 @@ class Bus(object):
 
     def send_ping(self, dev_id):
         """Sends a ping to a device."""
-        if self.show_packets:
+        if self.show & Bus.SHOW_COMMANDS:
             log('Sending PING to ID {}'.format(dev_id))
         self.fill_and_write_packet(dev_id, packet.Command.PING)
 
@@ -161,7 +161,7 @@ class Bus(object):
         """Sends a READ request to read data from the device's control
         table.
         """
-        if self.show_packets:
+        if self.show & Bus.SHOW_COMMANDS:
             log('Sending READ to ID {} offset 0x{:02x} len {}'.format(
                 dev_id, offset, num_bytes))
         self.fill_and_write_packet(dev_id, packet.Command.READ, bytearray((offset, num_bytes)))
@@ -170,7 +170,7 @@ class Bus(object):
         """Sends a RESET command to the device, which causes it to reset the
            control table to factory defaults.
         """
-        if self.show_packets:
+        if self.show & Bus.SHOW_COMMANDS:
             log('Sending RESET to ID {}'.format(self.dev_id))
         self.fill_and_write_packet(dev_id, packet.Command.RESET)
 
@@ -183,7 +183,7 @@ class Bus(object):
 
         Deferred writes will occur when and ACTION command is broadcast.
         """
-        if self.show_packets:
+        if self.show & Bus.SHOW_COMMANDS:
             log('Sending WRITE to ID {} offset 0x{:02x} len {}'.format(dev_id, offset, len(data)))
         cmd = packet.Command.REG_WRITE if deferred else packet.Command.WRITE
         pkt_data = bytearray(len(data))
