@@ -29,8 +29,8 @@ class Bus:
     """The Bus class knows the commands used to talk to bioloid devices."""
 
     SHOW_NONE       = 0
-    SHOW_COMMANDS   = 0x01
-    SHOW_PACKETS    = 0x02
+    SHOW_COMMANDS   = (1 << 0)
+    SHOW_PACKETS    = (1 << 1)
 
     def __init__(self, serial_port, show=SHOW_NONE):
         self.serial_port = serial_port
@@ -184,7 +184,8 @@ class Bus:
         Deferred writes will occur when and ACTION command is broadcast.
         """
         if self.show & Bus.SHOW_COMMANDS:
-            log('Sending WRITE to ID {} offset 0x{:02x} len {}'.format(dev_id, offset, len(data)))
+            cmd_str = 'REG_WRITE' if deferred else 'WRITE'
+            log('Sending {} to ID {} offset 0x{:02x} len {}'.format(cmd_str, dev_id, offset, len(data)))
         cmd = packet.Command.REG_WRITE if deferred else packet.Command.WRITE
         pkt_data = bytearray(len(data))
         pkt_data[0] = offset
@@ -203,6 +204,9 @@ class Bus:
 
         raises ValueError if the dimensionality of values is incorrect.
         """
+        if self.show & Bus.SHOW_COMMANDS:
+            ids = ', '.join(['{}'.format(id) for id in dev_ids])
+            log('Sending SYNC_WRITE to IDs {} offset 0x{:02x} len {}'.format(ids, offset, len(values[0]))
         num_ids = len(dev_ids)
         if num_ids != len(values):
             raise ValueError('len(dev_ids) = {} must match len(values) = {}'.format(num_ids, len(values)))

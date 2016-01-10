@@ -12,8 +12,8 @@ IP_PORT = 8888
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="test_dev_server.py",
-        usage="%(prog)s [options] [command]",
+        #prog="test_dev_server.py",
+        #usage="%(prog)s [options] [command]",
         description="Simulate Bioloid devices over a network socket",
     )
     parser.add_argument(
@@ -52,6 +52,8 @@ def main():
 
         conn, addr = s.accept()
         print('Connection from:', addr)
+        print('type of conn', type(conn))
+        print('type of addr', type(addr))
 
         socket_port = SocketPort(conn)
         if args.servo:
