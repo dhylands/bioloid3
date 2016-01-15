@@ -3,6 +3,7 @@
 import os
 import packet
 import struct
+from bus import Bus
 from dump_mem import dump_mem
 from log import log
 
@@ -58,7 +59,7 @@ class ControlTable(object):
     def reset(self):
         """Resets the control table back to its factory default settings."""
         self.bytes[:] = self.initial_bytes
-        self.notify_update(0, len(self.bytes))
+        self.notify_updates(0, len(self.bytes))
         self.write_to_file()
 
     def set_from_bytes(self, offset, bytes, persist=True):
@@ -97,9 +98,9 @@ class Device(object):
     INITIAL_BAUD    = 1     # Corresponds to 1 MBit
     INITIAL_RDT     = 250   # Corresponds to 500 uSec
 
-    def __init__(self, dev_port, num_persistent_bytes, initial_bytes, ctl_bytes, notifications, show_packets=False):
+    def __init__(self, dev_port, num_persistent_bytes, initial_bytes, ctl_bytes, notifications, show=Bus.SHOW_NONE):
         self.dev_port = dev_port
-        self.show_packets = show_packets
+        self.show = show
 
         self.pkt = None
         self.deffered_offset = 0
@@ -158,16 +159,14 @@ class Device(object):
         self.write_status_packet(packet.ErrorCode.NONE, params)
 
     def command_reg_write(self, pkt):
-        """Called when a REG_WRITE (aka deferred WRITE) command is received."""
+        """Called when a REG_WRITE (aka deferred WRITE) cmmand is received."""
         offset = pkt.param_byte(0)
         length = pkt.length - 3
         params = pkt.params()[1:]
-        status = self.control_table.validate_from_bytes(offset, params)
         if pkt.dev_id != packet.Id.BROADCAST:
             self.write_status_packet(status)
-        if status == packet.ErrorCode.NONE:
-            self.deferred_offset = offset
-            self.deferred_params = params
+        self.deferred_offset = offset
+        self.deferred_params = params
 
     def command_reset(self, pkt):
         """Called when a RESET command is received."""
@@ -184,9 +183,7 @@ class Device(object):
             dev_id = params[idx]
             if dev_id == self.dev_id():
                 id_params = params[idx+1:idx+1+length]
-                status = self.control_table.validate_from_bytes(offset, id_params)
-                if status == packet.ErrorCode.NONE:
-                    self.control_table.set_from_bytes(offset, id_params)
+                self.control_table.set_from_bytes(offset, id_params)
                 break
             idx += length + 1
 
@@ -194,11 +191,9 @@ class Device(object):
         """Called when a WRITE command is received."""
         offset = pkt.param_byte(0)
         params = pkt.params()[1:]
-        status = self.control_table.validate_from_bytes(offset, params)
         if pkt.dev_id != packet.Id.BROADCAST:
-            self.write_status_packet(status)
-        if status == packet.ErrorCode.NONE:
-            self.control_table.set_from_bytes(offset, params)
+            self.write_status_packet(packet.ErrorCode.NONE)
+        self.control_table.set_from_bytes(offset, params)
 
     def command_unknown(self, pkt):
         """Called when an unknown command is received. If the derived
@@ -215,9 +210,10 @@ class Device(object):
         if pkt.dev_id != self.dev_id() and pkt.dev_id != packet.Id.BROADCAST:
             # Not a packet for us
             return
-        if self.show_packets:
+        if self.show & Bus.SHOW_COMMANDS:
             log('Rcvd packet for ID: {} Cmd: {}'.format(pkt.dev_id, packet.Command(pkt.cmd)))
-            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False)
+        if self.show & Bus.SHOW_PACKETS:
+            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False, log=log)
         if pkt.cmd == packet.Command.PING:
             self.command_ping(pkt)
         elif pkt.cmd == packet.Command.READ:
@@ -240,16 +236,15 @@ class Device(object):
         if self.pkt is None:
             self.pkt = packet.Packet()
         err = self.pkt.process_byte(byte)
-        if err == packet.ErrorCode.NOT_DONE:
-            return
         if err == packet.ErrorCode.NONE:
             self.packet_received(self.pkt)
-            return
-
-        # Since we got this far, this means that there must have been a
-        # checksum error. If it looks like the packet was addressed to us
-        # then generate an error packet.
-        self.write_status_packet(packet.ErrorCode.CHECKSUM)
+        elif err != packet.ErrorCode.NOT_DONE:
+            # Since we got this far, this means that there must have been a
+            # checksum error. If it looks like the packet was addressed to us
+            # then generate an error packet.
+            if pkt.dev_id == self.dev_id():
+                self.write_status_packet(err)
+        return err
 
     def write_status_packet(self, status, params=None):
         """Allocates and fills a packet. param should be a bytearray of data
@@ -268,7 +263,7 @@ class Device(object):
             pkt_bytes[3] += len(params)
             pkt_bytes[5:packet_len - 1] = params
         pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
-        if self.show_packets:
-            dump_mem(pkt_bytes, prefix='  W', show_ascii=False)
+        if self.show & Bus.SHOW_PACKETS:
+            dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)
         self.dev_port.write_packet(pkt_bytes)
 

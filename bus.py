@@ -64,7 +64,7 @@ class Bus:
             pkt_bytes[5:packet_len - 1] = data
         pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
         if self.show & Bus.SHOW_PACKETS:
-            dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)
+            dump_mem(pkt_bytes, prefix='  W', show_ascii=True, log=log)
         self.serial_port.write_packet(pkt_bytes)
 
     def ping(self, dev_id):
@@ -113,7 +113,7 @@ class Bus:
         if self.show & Bus.SHOW_COMMANDS:
             log('Rcvd Status: {}'.format(packet.ErrorCode(err)))
         if self.show & Bus.SHOW_PACKETS:
-            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False, log=log)
+            dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=True, log=log)
         err = pkt.error_code()
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
@@ -206,7 +206,7 @@ class Bus:
         """
         if self.show & Bus.SHOW_COMMANDS:
             ids = ', '.join(['{}'.format(id) for id in dev_ids])
-            log('Sending SYNC_WRITE to IDs {} offset 0x{:02x} len {}'.format(ids, offset, len(values[0]))
+            log('Sending SYNC_WRITE to IDs {} offset 0x{:02x} len {}'.format(ids, offset, len(values[0])))
         num_ids = len(dev_ids)
         if num_ids != len(values):
             raise ValueError('len(dev_ids) = {} must match len(values) = {}'.format(num_ids, len(values)))

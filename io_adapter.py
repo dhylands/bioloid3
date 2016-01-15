@@ -4,6 +4,7 @@
 """
 
 from device import Device
+from bus import Bus
 from log import log
 import io_adapter_cfg as cfg
 import pyb
@@ -11,7 +12,7 @@ import uctypes
 
 class IO_Adapter(Device):
 
-    def __init__(self, dev_port, show_packets=False):
+    def __init__(self, dev_port, show=Bus.SHOW_NONE):
 
         desc = {
             'model':        uctypes.UINT16  | 0,
@@ -56,6 +57,8 @@ class IO_Adapter(Device):
         init.dev_id     = Device.INITIAL_DEV_ID
         init.baud_rate  = Device.INITIAL_BAUD
         init.rdt        = Device.INITIAL_RDT
+        for idx in range(cfg.NUM_GPIOS):
+            init.gpio_cfg[idx].dir = 1
 
         ctl_bytes = bytearray(cfg.NUM_CTL_BYTES)
         self.ctl = uctypes.struct(uctypes.addressof(ctl_bytes), desc, uctypes.LITTLE_ENDIAN)
@@ -72,7 +75,7 @@ class IO_Adapter(Device):
         self.adc = [None] * cfg.NUM_ADCS
         self.gpio = [None] * cfg.NUM_GPIOS
 
-        super().__init__(dev_port, cfg.PERSISTENT_BYTES, initial_bytes, ctl_bytes, notifications, show_packets)
+        super().__init__(dev_port, cfg.PERSISTENT_BYTES, initial_bytes, ctl_bytes, notifications, show)
 
     def pin_to_str(self, pin):
         """Converts a pin raw value into its string equivalent."""
@@ -88,7 +91,7 @@ class IO_Adapter(Device):
                 self.adc[pin_idx] = pyb.ADC(pin_str)
             else:
                 self.adc[pin_idx] = None
-            if self.show_packets:
+            if self.show & Bus.SHOW_COMMANDS:
                 log('Set adc[%d] to %s' % (pin_idx, self.adc[pin_idx]))
 
     def filebase(self):
@@ -107,7 +110,7 @@ class IO_Adapter(Device):
                 self.gpio_cfg_updated(cfg.GPIO_CFG + pin_idx, 1)
             else:
                 self.gpio[pin_idx] = None
-            if self.show_packets:
+            if self.show & Bus.SHOW_COMMANDS:
                 log('Set gpio[%d] to %s' % (pin_idx, self.gpio[pin_idx]))
 
     def gpio_cfg_updated(self, offset, length):
@@ -123,20 +126,20 @@ class IO_Adapter(Device):
                 else:
                     mode = pyb.Pin.OUT_PP
                 if gpio_cfg.pu:
-                    pull = pyb.Pin.PULL_UPd
+                    pull = pyb.Pin.PULL_UP
                 elif gpio_cfg.pd:
                     pull = pyb.Pin.PULL_DOWN
                 else:
                     pull = pyb.Pin.PULL_NONE
                 self.gpio[pin_idx].init(mode, pull)
-                if self.show_packets:
+                if self.show & Bus.SHOW_COMMANDS:
                     log('Configured gpio[%d] to %s' % (pin_idx, self.gpio[pin_idx]))
 
     def gpio_set_updated(self, offset, length):
         """Called when the GPIO_SET register is written."""
         for gpio, pin_idx in self.valid_gpios(self.ctl.gpio_set):
             gpio.value(1)
-            if self.show_packets:
+            if self.show & Bus.SHOW_COMMANDS:
                 log('Set gpio[%d] %s to 1' % (pin_idx, self.gpio[pin_idx]))
 
 
@@ -144,7 +147,7 @@ class IO_Adapter(Device):
         """Called when the GPIO_CLEAR register is written."""
         for gpio, pin_idx in self.valid_gpios(self.ctl.gpio_clear):
             gpio.value(0)
-            if self.show_packets:
+            if self.show & Bus.SHOW_COMMANDS:
                 log('Set gpio[%d] %s to 0' % (pin_idx, gpio))
 
     def gpio_odr_updated(self, offset, length):
@@ -152,7 +155,7 @@ class IO_Adapter(Device):
         for gpio, pin_idx in self.valid_gpios():
             val = (self.ctl.gpio_odr >> pin_idx) & 1
             gpio.value(val)
-            if self.show_packets:
+            if self.show & Bus.SHOW_COMMANDS:
                 log('Set gpio[%d] %s to %d' % (pin_idx, gpio, val))
 
     def update_adcs(self):
