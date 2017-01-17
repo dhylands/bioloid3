@@ -156,7 +156,7 @@ class Packet:
     """Encapsulates the packets sent to and from the bioloid device."""
 
     def __init__(self):
-        """Constructs a packet from a bufffer, if provided."""
+        """Constructs a packet from a buffer, if provided."""
         self.cmd = None
         self.dev_id = None
         self.checksum = 0
@@ -212,8 +212,8 @@ class Packet:
             self.checksum = 0
         elif self.byte_index == 3:  # Length
             self.length = byte
-            # the length includes the length byte and the command
-            # but does include the initial 2 0xff's, the device_id or checksum
+            # the length includes the length byte and the command, but
+            # does not include the initial 2 0xff's, the device_id or checksum
             self.pkt_bytes = bytearray(self.length + 4)
             self.pkt_bytes[0] = 0xff
             self.pkt_bytes[1] = 0xff

@@ -42,10 +42,10 @@ It will perform the following:
 * scan the bus looking for devices. It will print out the model and version
 of each device. This tests PING and READ.
 
-* turn on and off the led of each device a total of 4 times (one device and a
+* turn on and off the led of each device a total of 4 times (one device at a
 time). This tests WRITE.
 
-* tun on and off all LEDs simultaneously, 4 times. This tests the REG_WRITE and
+* turn on and off all LEDs simultaneously, 4 times. This tests the REG_WRITE and
 ACTION commands (REG_WRITE is a deferred write).
 
 * turn on and off all LEDs simultaneously, 4 times This tests the SYNC_WRITE
@@ -99,8 +99,8 @@ with the bioloid devices. The Bus class knows how to format all of the various
 command packets that can be sent to the bioloid devices and parses the response
 packets which are recieved back.
 
-It is expected that this class will be derived, and that he derived class will
-provide the read_byte and write_packet routines which actuall send and receive
+It is expected that this class will be derived, and that the derived class will
+provide the read_byte and write_packet routines which actually send and receive
 the bytes.
 
 ### Device Commands
@@ -113,7 +113,7 @@ their deferred writes. This function returns no data, and raises no exceptions.
 #### Bus.ping(dev_id)
 
 Sends a PING request to the device with an ID of `dev_id`. Returns True if the
-device responds successfully, False if a timeout occurs (typicall no device).
+device responds successfully, False if a timeout occurs (typically no device).
 If the response contains any errors, then a Bus.BusError will be raised.
 Note that ping will return False rather than raise a BusError with an
 error code of packet.ErrorCode.Timeout.
@@ -180,7 +180,7 @@ Bus.BusError will be raised.
 
 ### Functions which the derived class need to implement
 
-#### Bus.readbyte()
+#### Bus.read_byte()
 
 The derived bus class should return the next character received, or None
 if a timeout occurs. The maximum Return Delay Time is 254 * 2 usec = 508 usec,

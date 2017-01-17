@@ -7,12 +7,12 @@ import os
 import struct
 import sys
 import time
-from serial_port import SerialPort
 from commander_rx import CommanderRx
 
 sysname = os.uname().sysname
 if sysname == 'Linux':
     import serial
+    from serial_port import SerialPort
     from serial_bus import SerialBus
     port = '/dev/ttyUSB0'
     try:
@@ -22,8 +22,8 @@ if sysname == 'Linux':
         sys.exit()
 
 elif sysname == 'pyboard':
-    from stm_uart_bus import UART_Bus
-    bus = UART_Bus(6, 38400)
+    from stm_uart_port import UART_Port
+    port = UART_Port(6, 38400)
 else:
     print("Unrecognized sysname: {}".format(sysname))
     sys.exit()
