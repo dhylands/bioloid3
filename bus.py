@@ -99,7 +99,7 @@ class Bus:
         Rasises a bioloid.bus.BusError if an error occurs.
 
         """
-        pkt = packet.Packet()
+        pkt = packet.Packet(status_packet=True)
         while True:
             # start = pyb.micros()
             byte = self.serial_port.read_byte()
