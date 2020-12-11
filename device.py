@@ -259,10 +259,13 @@ class Device(object):
         pkt_bytes[2] = self.dev_id()
         pkt_bytes[3] = 2       # for len and status
         pkt_bytes[4] = self.status | status
+        check_sum = pkt_bytes[2] + pkt_bytes[3]
         if not params is None:
             pkt_bytes[3] += len(params)
             pkt_bytes[5:packet_len - 1] = params
-        pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
+            check_sum += pkt_bytes[3]
+            check_sum += sum(pkt_bytes[5:-1])
+        pkt_bytes[-1] = ~check_sum & 0xff
         if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)
         self.dev_port.write_packet(pkt_bytes)

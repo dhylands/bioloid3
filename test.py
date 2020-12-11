@@ -126,11 +126,14 @@ def linux_main():
     )
     args = parser.parse_args(sys.argv[1:])
 
-    show_packets = args.verbose
+    if args.verbose:
+        show = Bus.SHOW_PACKETS
+    else:
+        show = Bus.SHOW_NONE
     if args.dummy:
         from dummy_port import DummyPort
         dev_port = DummyPort()
-        show_packets = True
+        show = Bus.SHOW_PACKETS
     elif args.net:
         import socket
         from socket_port import SocketPort
@@ -148,13 +151,13 @@ def linux_main():
         except serial.serialutil.SerialException:
             print("Unable to open port '{}'".format(port))
             sys.exit()
-    bus = Bus(dev_port, show_packets=show_packets)
+    bus = Bus(dev_port, show=show)
     test(bus)
 
 
 def main():
     sysname = os.uname().sysname
-    if sysname == 'Linux':
+    if sysname == 'Linux' or sysname == 'Darwin':
         linux_main()
     elif sysname == 'pyboard':
         pyboard_main()

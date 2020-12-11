@@ -155,7 +155,7 @@ class ErrorCode:
 class Packet:
     """Encapsulates the packets sent to and from the bioloid device."""
 
-    def __init__(self):
+    def __init__(self, status_packet=False):
         """Constructs a packet from a buffer, if provided."""
         self.cmd = None
         self.dev_id = None
@@ -164,6 +164,7 @@ class Packet:
         self.length = None
         self.pkt_bytes = None
         self.byte_index = 0
+        self.status_packet = status_packet
 
     def param_byte(self, idx):
         """Returns the idx'th parameter byte."""
@@ -231,6 +232,7 @@ class Packet:
             if self.checksum == byte:
                 return ErrorCode.NONE
             return ErrorCode.CHECKSUM
-        self.checksum += byte
+        if self.byte_index != 4 or not self.status_packet:
+            self.checksum += byte
         self.byte_index += 1
         return ErrorCode.NOT_DONE

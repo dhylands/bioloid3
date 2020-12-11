@@ -10,7 +10,7 @@ import time
 from commander_rx import CommanderRx
 
 sysname = os.uname().sysname
-if sysname == 'Linux':
+if sysname == 'Linux' or sysname == 'Darwin':
     import serial
     from serial_port import SerialPort
     from serial_bus import SerialBus

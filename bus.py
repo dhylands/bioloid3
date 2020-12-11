@@ -51,7 +51,7 @@ class Bus:
            to include in the packet, or None if no data should be included.
         """
         packet_len = 6
-        if not data is None:
+        if data is not None:
             packet_len += len(data)
         pkt_bytes = bytearray(packet_len)
         pkt_bytes[0] = 0xff
@@ -59,7 +59,7 @@ class Bus:
         pkt_bytes[2] = dev_id
         pkt_bytes[3] = 2       # for len and cmd
         pkt_bytes[4] = cmd
-        if not data is None:
+        if data is not None:
             pkt_bytes[3] += len(data)
             pkt_bytes[5:packet_len - 1] = data
         pkt_bytes[-1] = ~sum(pkt_bytes[2:-1]) & 0xff
@@ -101,7 +101,7 @@ class Bus:
         """
         pkt = packet.Packet()
         while True:
-            start = pyb.micros()
+            # start = pyb.micros()
             byte = self.serial_port.read_byte()
             if byte is None:
                 raise BusError(packet.ErrorCode.TIMEOUT)
@@ -119,13 +119,13 @@ class Bus:
             raise BusError(err)
         return pkt
 
-    def reset(self, def_id):
+    def reset(self, dev_id):
         """Sends a RESET request.
 
            Raises a bus.Error if any errors occur.
         """
-        self.send_reset()
-        if self.dev_id == packet.Id.BROADCAST:
+        self.send_reset(dev_id)
+        if dev_id == packet.Id.BROADCAST:
             return packet.ErrorCode.NONE
         pkt = self.read_status_packet()
         return pkt.error_code()
@@ -171,7 +171,7 @@ class Bus:
            control table to factory defaults.
         """
         if self.show & Bus.SHOW_COMMANDS:
-            log('Sending RESET to ID {}'.format(self.dev_id))
+            log('Sending RESET to ID {}'.format(dev_id))
         self.fill_and_write_packet(dev_id, packet.Command.RESET)
 
     def send_write(self, dev_id, offset, data, deferred=False):

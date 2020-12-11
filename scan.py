@@ -152,7 +152,7 @@ def linux_main():
 
 def main():
     sysname = os.uname().sysname
-    if sysname == 'Linux':
+    if sysname == 'Linux' or sysname == 'Darwin':
         linux_main()
     elif sysname == 'pyboard':
         pyboard_main()
