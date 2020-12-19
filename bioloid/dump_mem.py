@@ -1,15 +1,24 @@
 """Provides the dump_mem function, which dumps memory in hex/ASCII."""
 
 import sys
-if sys.implementation.name == 'micropython':    #pragma: no cover
-    import ubinascii
+if sys.implementation.name == 'micropython':    # pragma: no cover
+    import binascii
+
     def hexlify(buf):
-        return ubinascii.hexlify(buf, ' ')
+        """Converts a binary string into its hex string representation
+           with a space between each byte.
+        """
+        return binascii.hexlify(buf, ' ')
 else:
     def hexlify(buf):
-        # CPython's hexlify doesn't have the notion of a seperator character
-        # so we just do this the old fashioned way
+        """CPython's hexlify doesn't have the notion of a seperator character
+           so we just do this the old fashioned way.
+        """
         return bytes(' '.join(['{:02x}'.format(b) for b in buf]), 'ascii')
+
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
 
 
 def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
@@ -23,7 +32,8 @@ def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
         log(prefix + 'No data')
         return
     buf_len = len(buf)
-    mv = memoryview(buf)
+    # Use a memoryview to prevent unnecessary allocations
+    buf_mv = memoryview(buf)
     line_ascii = ''
     ascii_offset = 0
 
@@ -46,20 +56,23 @@ def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
 
     line_hex = out_line[hex_offset:hex_offset + (line_width * 3)]
     if show_ascii:
-        out_line[ascii_offset-1:ascii_offset] = b' ' # space between hex and ascii
+        # space between hex and ascii
+        out_line[ascii_offset-1:ascii_offset] = b' '
         line_ascii = out_line[ascii_offset:ascii_offset + line_width]
 
     for offset in range(0, buf_len, line_width):
         if show_addr:
-            out_line[prefix_len:prefix_len + 6] = bytes('{:04x}: '.format(addr), 'ascii')
+            out_line[prefix_len:prefix_len + 6] \
+                = bytes('{:04x}: '.format(addr), 'ascii')
         line_bytes = min(buf_len - offset, line_width)
-        line_hex[0:(line_bytes * 3)-1] = hexlify(mv[offset:offset+line_bytes])
-        out_len = hex_offset + line_bytes * 3 -1
+        line_hex[0:(line_bytes * 3)-1] \
+            = hexlify(buf_mv[offset:offset+line_bytes])
+        out_len = hex_offset + line_bytes * 3 - 1
         if show_ascii:
             if line_bytes < line_width:
                 for i in range(line_bytes * 3 - 1, line_width * 3):
                     line_hex[i:i+1] = b' '
-            line_ascii[0:line_bytes] = mv[offset:offset + line_bytes]
+            line_ascii[0:line_bytes] = buf_mv[offset:offset + line_bytes]
             for i in range(line_bytes):
                 char = line_ascii[i]
                 if char < 0x20 or char > 0x7e:

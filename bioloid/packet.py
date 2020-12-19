@@ -3,9 +3,6 @@ devices on the bioloid bus.
 
 """
 
-from .dump_mem import dump_mem
-
-
 class Id:
     """Constants for reserved IDs."""
 
@@ -55,6 +52,12 @@ class Command:
         RESET:       'RESET',
         SYNC_WRITE:  'SYNC_WRITE'
     }
+    # We assign cmd_id to be None here and populate it
+    # on the first call to parse to reduce memory usage
+    # when psrse isn't used (like whn running under micropython)
+    # pylint: disable=unsupported-assignment-operation
+    # pylint: disable=unsupported-membership-test
+    # pylint: disable=unsubscriptable-object
     cmd_id = None
 
     def __init__(self, cmd):
@@ -104,6 +107,7 @@ class ErrorCode:
 
     lookup = ["InputVoltage", "AngleLimit", "OverHeating", "Range",
               "Checksum", "Overload", "Instruction", "Reserved"]
+    # pylint: disable=unsupported-membership-test
     lookupLower = None
 
     def __init__(self, error_code):
@@ -147,11 +151,12 @@ class ErrorCode:
         for word in error_str.split(','):
             word = word.strip().lower()
             if word not in ErrorCode.lookupLower:
-                raise ValueError("Invalid mask string '{}}'".format(word))
+                raise ValueError("Invalid mask string '{}'".format(word))
             result |= (1 << ErrorCode.lookupLower.index(word))
         return result
 
 
+# pylint: disable=too-many-instance-attributes
 class Packet:
     """Encapsulates the packets sent to and from the bioloid device."""
 
