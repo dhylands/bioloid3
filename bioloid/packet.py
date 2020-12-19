@@ -3,7 +3,7 @@ devices on the bioloid bus.
 
 """
 
-from dump_mem import dump_mem
+from .dump_mem import dump_mem
 
 
 class Id:
