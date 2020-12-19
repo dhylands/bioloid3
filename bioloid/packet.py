@@ -13,8 +13,8 @@ class Id:
     INVALID = 0xFF
 
     idStr = {
-        BROADCAST:  "BROADCAST",
-        INVALID:    "INVALID"
+        BROADCAST:  'BROADCAST',
+        INVALID:    'INVALID'
     }
 
     def __init__(self, dev_id):
@@ -22,13 +22,13 @@ class Id:
 
     def __repr__(self):
         """Return a python parsable representation of ourselves."""
-        return "Id(0x%02x)" % self.dev_id
+        return 'Id(0x{:02x})'.format(self.dev_id)
 
     def __str__(self):
         """Return a human readable representation of ourselves."""
         if self.dev_id in Id.idStr:
             return Id.idStr[self.dev_id]
-        return "0x%02x" % self.dev_id
+        return '0x{:02x}'.format(self.dev_id)
 
     def get_dev_id(self):
         """Returns the device Id that this object represents."""
@@ -47,13 +47,13 @@ class Command:
     SYNC_WRITE = 0x83   # Writes values to many devices
 
     cmd_str = {
-        PING:        "PING",
-        READ:        "READ",
-        WRITE:       "WRITE",
-        REG_WRITE:   "REG_WRITE",
-        ACTION:      "ACTION",
-        RESET:       "RESET",
-        SYNC_WRITE:  "SYNC_WRITE"
+        PING:        'PING',
+        READ:        'READ',
+        WRITE:       'WRITE',
+        REG_WRITE:   'REG_WRITE',
+        ACTION:      'ACTION',
+        RESET:       'RESET',
+        SYNC_WRITE:  'SYNC_WRITE'
     }
     cmd_id = None
 
@@ -62,13 +62,13 @@ class Command:
 
     def __repr__(self):
         """Return a python parsable representation of ourselves."""
-        return 'Command(0x%02x)'.format(self.cmd)
+        return 'Command(0x{:02x})'.format(self.cmd)
 
     def __str__(self):
         """Return a human readable representation of ourselves."""
         if self.cmd in Command.cmd_str:
             return Command.cmd_str[self.cmd]
-        return '0x%02x'.format(self.cmd)
+        return '0x{:02x}'.format(self.cmd)
 
     @staticmethod
     def parse(string):
@@ -111,7 +111,7 @@ class ErrorCode:
 
     def __repr__(self):
         """Return a python parsable representation of ourselves."""
-        return "ErrorCode(0x%02x)" % self.error_code
+        return "ErrorCode(0x{:02x})".format(self.error_code)
 
     def __str__(self):
         """Return a human readable representation of ourselves."""
@@ -147,7 +147,7 @@ class ErrorCode:
         for word in error_str.split(','):
             word = word.strip().lower()
             if word not in ErrorCode.lookupLower:
-                raise ValueError("Invalid mask string '%s'" % word)
+                raise ValueError("Invalid mask string '{}}'".format(word))
             result |= (1 << ErrorCode.lookupLower.index(word))
         return result
 
