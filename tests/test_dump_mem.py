@@ -117,5 +117,13 @@ class TestDumpMem(unittest.TestCase):
       '0000: 30 31 32 00 01 1e 1f 34 35 36                   012....456',
     ])
 
+  def test_neg_line_width(self):
+    self.clear_log()
+    dump_mem(b'0123456789ABCDEFG', prefix=PREFIX, line_width=-6, log=self.log)
+    self.assertEqual(self.log_lines, [
+      '    Prefix: 0000: 30 31 32 33 34 35 36 37 38 39 41 42 43 44 45 46 0123456789ABCDEF',
+      '    Prefix: 0010: 47                                              G'
+    ])
+
 if __name__ == '__main__':
     unittest.main()

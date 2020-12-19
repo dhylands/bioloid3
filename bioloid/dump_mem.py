@@ -1,7 +1,7 @@
 """Provides the dump_mem function, which dumps memory in hex/ASCII."""
 
 import sys
-if sys.implementation.name == 'micropython':
+if sys.implementation.name == 'micropython':    #pragma: no cover
     import ubinascii
     def hexlify(buf):
         return ubinascii.hexlify(buf, ' ')
