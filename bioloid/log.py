@@ -31,4 +31,8 @@ def log_to_uart(uart):
         uart.write(' '.join([str(arg) for arg in args]))
         uart.write('\r\n')
 
+def log_to_fn(fn):
+    global log_fn
+    log_fn = fn
+
 log_to_print()

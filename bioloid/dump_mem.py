@@ -28,7 +28,7 @@ def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
         line_width = 16
     if len(prefix) > 0:
         prefix += ':'
-    if len(buf) == 0:
+    if buf is None or len(buf) == 0:
         log(prefix + 'No data')
         return
     buf_len = len(buf)

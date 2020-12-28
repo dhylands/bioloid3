@@ -13,8 +13,8 @@ class SerialBus(Bus):
 
     """
 
-    def __init__(self, port, baud=1000000, show_packets=False):
-        Bus.__init__(self, show_packets)
+    def __init__(self, port, baud=1000000, show=SHOW_NONE):
+        Bus.__init__(self, show)
         self.serial_port = serial.Serial(port=port,
                                          baudrate=baud,
                                          timeout=0.1,

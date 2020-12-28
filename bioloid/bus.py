@@ -5,9 +5,9 @@
 """
 import pyb
 
-from log import log
-import packet
-from dump_mem import dump_mem
+from bioloid import packet
+from bioloid.dump_mem import dump_mem
+from bioloid.log import log
 
 
 class BusError(Exception):
@@ -104,17 +104,26 @@ class Bus:
             # start = pyb.micros()
             byte = self.serial_port.read_byte()
             if byte is None:
+                if self.show & Bus.SHOW_COMMANDS:
+                    log('TIMEOUT')
+                if self.show & Bus.SHOW_PACKETS:
+                    dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=True, log=log)
                 raise BusError(packet.ErrorCode.TIMEOUT)
             err = pkt.process_byte(byte)
             if err != packet.ErrorCode.NOT_DONE:
                 break
         if err != packet.ErrorCode.NONE:
-            raise BusError(err)
+            err_ex = BusError(err)
+            if self.show & Bus.SHOW_COMMANDS:
+                log(err_ex)
+            if self.show & Bus.SHOW_PACKETS:
+                dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=True, log=log)
+            raise err_ex
+        err = pkt.error_code()
         if self.show & Bus.SHOW_COMMANDS:
-            log('Rcvd Status: {}'.format(packet.ErrorCode(err)))
+            log('Rcvd Status: {} from ID: {}'.format(packet.ErrorCode(err), pkt.dev_id))
         if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=True, log=log)
-        err = pkt.error_code()
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
         return pkt
@@ -171,7 +180,10 @@ class Bus:
            control table to factory defaults.
         """
         if self.show & Bus.SHOW_COMMANDS:
-            log('Sending RESET to ID {}'.format(dev_id))
+            if dev_id == packet.Id.BROADCAST:
+                log('Broadcasting RESET')
+            else:
+                log('Sending RESET to ID {}'.format(dev_id))
         self.fill_and_write_packet(dev_id, packet.Command.RESET)
 
     def send_write(self, dev_id, offset, data, deferred=False):
@@ -185,7 +197,10 @@ class Bus:
         """
         if self.show & Bus.SHOW_COMMANDS:
             cmd_str = 'REG_WRITE' if deferred else 'WRITE'
-            log('Sending {} to ID {} offset 0x{:02x} len {}'.format(cmd_str, dev_id, offset, len(data)))
+            if dev_id == packet.Id.BROADCAST:
+                log('Broadcasting {} offset 0x{:02x} len {}'.format(cmd_str, offset, len(data)))
+            else:
+                log('Sending {} to ID {} offset 0x{:02x} len {}'.format(cmd_str, dev_id, offset, len(data)))
         cmd = packet.Command.REG_WRITE if deferred else packet.Command.WRITE
         pkt_data = bytearray(len(data))
         pkt_data[0] = offset
