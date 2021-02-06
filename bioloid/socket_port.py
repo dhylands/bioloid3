@@ -10,6 +10,7 @@ class SocketPort(object):
     def __init__(self, skt):
         self.socket = skt
         self.baud = 0
+        self.rx_buf_len = 0
 
     def read_byte(self, block=False):
         """Reads a byte from the bus. This function will return None if
@@ -29,10 +30,13 @@ class SocketPort(object):
             if data:
                 return data[0]
 
-    def set_baud(self, baud):
-        """Baud doesn't really mean anything for a network socket."""
+    def set_parameters(self, baud, rx_buf_len):
+        """Sets the baud rate and the read buffer length.
+           Note that for a network socket this is essentially
+           a no-op.
+        """
         self.baud = baud
-        print('Baud set to: {}'.format(baud))
+        self.rx_buf_len = rx_buf_len
 
     def write_packet(self, packet_data):
         """Function implemented by a derived class which actually writes

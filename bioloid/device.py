@@ -129,7 +129,7 @@ class Device(object):
     def baud_updated(self, offset, length):
         baud = 2000000 // (self.baud() + 1)
         if self.dev_port.baud != baud:
-            self.dev_port.set_baud(baud)
+            self.dev_port.set_parameters(baud, self.dev.port.rx_buf_len)
 
     def command_action(self, pkt):
         """Called when an ACTION command is received."""

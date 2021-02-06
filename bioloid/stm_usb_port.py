@@ -13,8 +13,9 @@ class USB_Port:
     def __init__(self):
         self.usb_serial = USB_VCP()
         self.baud = 0
+        self.rx_buf_len = 0
         self.recv_buf = bytearray(1)
-        # Disable Control-C on the USB serail port in case one comes in the 
+        # Disable Control-C on the USB serial port in case one comes in the
         # data.
         self.usb_serial.setinterrupt(-1)
 
@@ -36,11 +37,13 @@ class USB_Port:
         if bytes_read > 0:
             return self.recv_buf[0]
 
-    def set_baud(self, baud):
-        """Sets the baud rate. Note that for USB Serial, this is essentially
-           a no-op. We store the baud rate that was set, so that 
+    def set_parameters(self, baud, rx_buf_len):
+        """Sets the baud rate and the read buffer length.
+           Note that for USB Serial, this is essentially
+           a no-op.
         """
         self.baud = baud
+        self.rx_buf_len = rx_buf_len
 
     def write_packet(self, packet_data):
         """Writes an entire packet to the serial port."""

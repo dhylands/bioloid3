@@ -12,10 +12,11 @@ class UART_Port:
     advantage of some features which are only available on the STM32F4xx processors.
     """
 
-    def __init__(self, uart_num, baud):
+    def __init__(self, uart_num, baud, rx_buf_len=64):
         self.uart = UART(uart_num)
         self.baud = 0
-        self.set_baud(baud)
+        self.rx_buf_len = 0
+        self.set_parameters(baud, rx_buf_len)
         base_str = 'USART{}'.format(uart_num)
         if not hasattr(stm, base_str):
             base_str = 'UART{}'.format(uart_num)
@@ -39,18 +40,19 @@ class UART_Port:
         if byte >= 0:
             return byte
 
-    def set_baud(self, baud):
-        """Sets the baud rate.
+    def set_parameters(self, baud, rx_buf_len):
+        """Sets the baud rate and the read buffer length.
 
         Note, the pyb.UART class doesn't have a method for setting the baud
         rate, so we need to reinitialize the uart object.
         """
-        if self.baud != baud:
+        if baud != self.baud or rx_buf_len != self.rx_buf_len:
             self.baud = baud
+            self.rx_buf_len = rx_buf_len
             # The max Return Delay Time is 254 * 2 usec = 508 usec. The default
             # is 500 usec. So using a timeout of 2 ensures that we wait for
             # at least 1 msec before considering a timeout.
-            self.uart.init(baudrate=baud, timeout=2)
+            self.uart.init(baudrate=baud, timeout=2, read_buf_len=rx_buf_len)
 
     def write_packet(self, packet_data):
         """Writes an entire packet to the serial port."""
@@ -81,7 +83,7 @@ def _write_packet(r0, r1, r2):   # uart(r0) buf(r1) len(r2)
     label(loop)
     cmp(r1, r2)
     bhi(endloop)                    # branch if buf > buf_end
-    
+
     # Wait for the Transmit Data Register to be Empty
 
     mov(r4, 0x80)                   # while ((uart->SR & USART_SR_TXE) == 0) {
