@@ -3,7 +3,6 @@
    enountered.
 
 """
-import pyb
 
 from bioloid import packet
 from bioloid.dump_mem import dump_mem
@@ -101,7 +100,6 @@ class Bus:
         """
         pkt = packet.Packet(status_packet=True)
         while True:
-            # start = pyb.micros()
             byte = self.serial_port.read_byte()
             if byte is None:
                 if self.show & Bus.SHOW_COMMANDS:
