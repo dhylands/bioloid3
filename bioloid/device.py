@@ -1,12 +1,12 @@
 """Implements a generic bioloid device."""
 
 import os
-import packet
 import struct
-from bus import Bus
-from dump_mem import dump_mem
-from log import log
-
+from bioloid.bus import Bus
+from bioloid.dump_mem import dump_mem
+from bioloid.log import log
+from bioloid import packet
+from binascii import hexlify
 
 class ControlTable(object):
 
@@ -17,7 +17,7 @@ class ControlTable(object):
         initial_bytes is a bytearray containing the initial values for the control table.
         ctl_bytes is a bytearray containing the control table bytes.
         notifications is a tuple of entries. Each entry contains 3 fields,
-          and offset, a length and a function to call when any value in the control
+          an offset, a length and a function to call when any value in the control
           table between offset to offset+length-1 is modified.
         filename is the name of the file to store the persitent bytes in.
         """
@@ -71,6 +71,7 @@ class ControlTable(object):
             self.write_to_file()
 
     def notify_updates(self, offset, length):
+        """Notifies any refistered notification handlers when indicated bytes are updated."""
         end_offset = offset + length
         for n_offset, n_len, n_fn in self.notifications:
             if n_offset < end_offset and n_offset + n_len > offset:
@@ -82,7 +83,7 @@ class ControlTable(object):
         """Writes the persistent bytes of the control table to the backing file."""
         persistent_bytes = self.get_as_bytes(0, self.num_persistent_bytes)
         with open(self.filename, 'wb') as f:
-            f.write(self.bytes[0:persistent_bytes])
+            f.write(self.bytes[0:len(persistent_bytes)])
 
 
 class Device(object):
@@ -93,6 +94,7 @@ class Device(object):
     DEV_ID_OFFSET   = 3
     BAUD_OFFSET     = 4
     RDT_OFFSET      = 5
+    LED             = 0x19
 
     INITIAL_DEV_ID  = 0
     INITIAL_BAUD    = 1     # Corresponds to 1 MBit
@@ -120,16 +122,23 @@ class Device(object):
         self.control_table = ControlTable(num_persistent_bytes, initial_bytes,
                                           ctl_bytes, notifications, ctl_filename)
 
+    def set_port(self, dev_port):
+        """Allows the port to be specified after creating the device."""
+        self.dev_port = dev_port
+
     def baud(self):
         return self.ctl_bytes[Device.BAUD_OFFSET]
 
     def dev_id(self):
         return self.ctl_bytes[Device.DEV_ID_OFFSET]
 
-    def baud_updated(self, offset, length):
+    def baud_updated(self, _offset, _length):
+        """Called whenever the baud rate is updated."""
+        if self.dev_port is None:
+            return
         baud = 2000000 // (self.baud() + 1)
         if self.dev_port.baud != baud:
-            self.dev_port.set_parameters(baud, self.dev.port.rx_buf_len)
+            self.dev_port.set_parameters(baud, self.dev_port.rx_buf_len)
 
     def command_action(self, pkt):
         """Called when an ACTION command is received."""
@@ -164,7 +173,7 @@ class Device(object):
         length = pkt.length - 3
         params = pkt.params()[1:]
         if pkt.dev_id != packet.Id.BROADCAST:
-            self.write_status_packet(status)
+            self.write_status_packet(packet.ErrorCode.NONE)
         self.deferred_offset = offset
         self.deferred_params = params
 
@@ -242,7 +251,7 @@ class Device(object):
             # Since we got this far, this means that there must have been a
             # checksum error. If it looks like the packet was addressed to us
             # then generate an error packet.
-            if pkt.dev_id == self.dev_id():
+            if self.pkt.dev_id == self.dev_id():
                 self.write_status_packet(err)
         return err
 
@@ -251,20 +260,20 @@ class Device(object):
            to include in the packet, or None if no data should be included.
         """
         packet_len = 6
+        params_len = 0
         if not params is None:
-            packet_len += len(params)
+            params_len = len(params)
+        packet_len += params_len
         pkt_bytes = bytearray(packet_len)
         pkt_bytes[0] = 0xff
         pkt_bytes[1] = 0xff
         pkt_bytes[2] = self.dev_id()
-        pkt_bytes[3] = 2       # for len and status
+        pkt_bytes[3] = 2 + params_len  # for len and status
         pkt_bytes[4] = self.status | status
-        check_sum = pkt_bytes[2] + pkt_bytes[3]
+        check_sum = pkt_bytes[2] + pkt_bytes[3] + pkt_bytes[4]
         if not params is None:
-            pkt_bytes[3] += len(params)
             pkt_bytes[5:packet_len - 1] = params
-            check_sum += pkt_bytes[3]
-            check_sum += sum(pkt_bytes[5:-1])
+            check_sum += sum(pkt_bytes[5:packet_len - 1])
         pkt_bytes[-1] = ~check_sum & 0xff
         if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)

@@ -190,6 +190,18 @@ class TestBus(unittest.TestCase):
             '  R: 0000: ff ff 01 03 00 20 db                            ..... .'
         ])
 
+    def test_read2(self):
+        bus = self.setup_bus('ff ff 01 04 02 00 03 f5', 'ff ff 01 05 00 0c 00 01 ec')
+        params = bus.read(1, 0x00, 3)
+        self.assertEqual(bytearray([0x0c, 0x00, 0x01]), params)
+        self.assertEqual(self.log_lines, [
+            'Sending READ to ID 1 offset 0x00 len 3',
+            '  W: 0000: ff ff 01 04 02 00 03 f5                         ........',
+            'Rcvd Status: None from ID: 1',
+            '  R: 0000: ff ff 01 05 00 0c 00 01 ec                      .........'
+        ])
+
+
     def test_reset_broadcast(self):
         # Broadcast a reset command (no response)
         bus = self.setup_bus('ff ff fe 02 06 f9', None)

@@ -6,7 +6,7 @@ import os
 import struct
 import sys
 import time
-from bus import Bus
+from bioloid.bus import Bus
 
 LED_OFFSET = 0x19
 
@@ -68,7 +68,7 @@ def test(bus):
         time.sleep(0.25)
 
 def pyboard_main():
-    from stm_uart_port import UART_Port
+    from bioloid.stm_uart_port import UART_Port
     serial_port = UART_Port(6, 1000000)
     bus = Bus(serial_port, show_packets=False)
     test(bus)
@@ -136,7 +136,7 @@ def linux_main():
         show = Bus.SHOW_PACKETS
     elif args.net:
         import socket
-        from socket_port import SocketPort
+        from bioloid.socket_port import SocketPort
 
         IP_ADDR = '127.0.0.1'
         IP_PORT = 8888
@@ -145,7 +145,7 @@ def linux_main():
         dev_port = SocketPort(s)
     else:
         import serial
-        from serial_port import SerialPort
+        from bioloid.serial_port import SerialPort
         try:
             dev_port = SerialPort(args.port, args.baud)
         except serial.serialutil.SerialException:

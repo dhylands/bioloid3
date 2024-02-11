@@ -14,7 +14,7 @@ class SerialPort(object):
     def __init__(self, port, baud=1000000):
         self.serial_port = serial.Serial(port=port,
                                          baudrate=baud,
-                                         timeout=0.1,
+                                         timeout=0.5,
                                          bytesize=serial.EIGHTBITS,
                                          parity=serial.PARITY_NONE,
                                          stopbits=serial.STOPBITS_ONE,

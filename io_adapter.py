@@ -3,55 +3,57 @@
    devices giving access to analog and digital I/O.
 """
 
-from device import Device
-from bus import Bus
-from log import log
+from bioloid.device import Device
+from bioloid.bus import Bus
+from bioloid.log import log
 import io_adapter_cfg as cfg
 import pyb
-import uctypes
+import ctypes
+
+ctypes.UINT16 = ctypes.c_uint16
 
 class IO_Adapter(Device):
 
     def __init__(self, dev_port, show=Bus.SHOW_NONE):
 
         desc = {
-            'model':        uctypes.UINT16  | 0,
-            'version':      uctypes.UINT8   | 2,
-            'dev_id':       uctypes.UINT8   | 3,
-            'baud_rate':    uctypes.UINT8   | 4,
-            'rdt':          uctypes.UINT8   | 5,
+            'model':        ctypes.UINT16  | 0,
+            'version':      ctypes.UINT8   | 2,
+            'dev_id':       ctypes.UINT8   | 3,
+            'baud_rate':    ctypes.UINT8   | 4,
+            'rdt':          ctypes.UINT8   | 5,
 
-            'num_adcs':     uctypes.UINT8   | cfg.NUM_ADCS_OFFSET,
-            'num_gpios':    uctypes.UINT8   | cfg.NUM_GPIOS_OFFSET,
+            'num_adcs':     ctypes.UINT8   | cfg.NUM_ADCS_OFFSET,
+            'num_gpios':    ctypes.UINT8   | cfg.NUM_GPIOS_OFFSET,
 
-            'adc_pin':      (uctypes.ARRAY | cfg.ADC_PIN, cfg.NUM_ADCS, {
-                'port':         uctypes.BFUINT8 | 0 | 4 << uctypes.BF_POS | 4 << uctypes.BF_LEN,
-                'pin':          uctypes.BFUINT8 | 0 | 0 << uctypes.BF_POS | 4 << uctypes.BF_LEN,
+            'adc_pin':      (ctypes.ARRAY | cfg.ADC_PIN, cfg.NUM_ADCS, {
+                'port':         ctypes.BFUINT8 | 0 | 4 << ctypes.BF_POS | 4 << ctypes.BF_LEN,
+                'pin':          ctypes.BFUINT8 | 0 | 0 << ctypes.BF_POS | 4 << ctypes.BF_LEN,
             }),
 
-            'gpio_pin':     (uctypes.ARRAY | cfg.GPIO_PIN, cfg.NUM_GPIOS, {
-                'port':         uctypes.BFUINT8 | 0 | 4 << uctypes.BF_POS | 4 << uctypes.BF_LEN,
-                'pin':          uctypes.BFUINT8 | 0 | 0 << uctypes.BF_POS | 4 << uctypes.BF_LEN,
+            'gpio_pin':     (ctypes.ARRAY | cfg.GPIO_PIN, cfg.NUM_GPIOS, {
+                'port':         ctypes.BFUINT8 | 0 | 4 << ctypes.BF_POS | 4 << ctypes.BF_LEN,
+                'pin':          ctypes.BFUINT8 | 0 | 0 << ctypes.BF_POS | 4 << ctypes.BF_LEN,
             }),
 
-            'gpio_cfg':     (uctypes.ARRAY | cfg.GPIO_CFG, cfg.NUM_GPIOS, {
-                'dir':          uctypes.BFUINT8 | 0 | 0 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-                'pu':           uctypes.BFUINT8 | 0 | 1 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-                'pd':           uctypes.BFUINT8 | 0 | 2 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-                'od':           uctypes.BFUINT8 | 0 | 3 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+            'gpio_cfg':     (ctypes.ARRAY | cfg.GPIO_CFG, cfg.NUM_GPIOS, {
+                'dir':          ctypes.BFUINT8 | 0 | 0 << ctypes.BF_POS | 1 << ctypes.BF_LEN,
+                'pu':           ctypes.BFUINT8 | 0 | 1 << ctypes.BF_POS | 1 << ctypes.BF_LEN,
+                'pd':           ctypes.BFUINT8 | 0 | 2 << ctypes.BF_POS | 1 << ctypes.BF_LEN,
+                'od':           ctypes.BFUINT8 | 0 | 3 << ctypes.BF_POS | 1 << ctypes.BF_LEN,
             }),
 
             # End of persistent values
 
-            'adc_value':    (uctypes.ARRAY | cfg.ADC_VALUE, uctypes.UINT16 | cfg.NUM_ADCS),
+            'adc_value':    (ctypes.ARRAY | cfg.ADC_VALUE, ctypes.UINT16 | cfg.NUM_ADCS),
 
-            'gpio_set':     uctypes.UINT32 | cfg.GPIO_SET,
-            'gpio_clear':   uctypes.UINT32 | cfg.GPIO_CLEAR,
-            'gpio_odr':     uctypes.UINT32 | cfg.GPIO_ODR,
-            'gpio_idr':     uctypes.UINT32 | cfg.GPIO_IDR,
+            'gpio_set':     ctypes.UINT32 | cfg.GPIO_SET,
+            'gpio_clear':   ctypes.UINT32 | cfg.GPIO_CLEAR,
+            'gpio_odr':     ctypes.UINT32 | cfg.GPIO_ODR,
+            'gpio_idr':     ctypes.UINT32 | cfg.GPIO_IDR,
         }
         initial_bytes = bytearray(cfg.NUM_CTL_BYTES)
-        init = uctypes.struct(uctypes.addressof(initial_bytes), desc, uctypes.LITTLE_ENDIAN)
+        init = ctypes.struct(ctypes.addressof(initial_bytes), desc, ctypes.LITTLE_ENDIAN)
         init.model = 123
         init.version    = 1
         init.dev_id     = Device.INITIAL_DEV_ID
@@ -61,9 +63,10 @@ class IO_Adapter(Device):
             init.gpio_cfg[idx].dir = 1
 
         ctl_bytes = bytearray(cfg.NUM_CTL_BYTES)
-        self.ctl = uctypes.struct(uctypes.addressof(ctl_bytes), desc, uctypes.LITTLE_ENDIAN)
+        self.ctl = ctypes.struct(ctypes.addressof(ctl_bytes), desc, ctypes.LITTLE_ENDIAN)
 
         notifications = (
+            (Device.LED,    1,              self.led_updated),
             (cfg.ADC_PIN,   cfg.NUM_ADCS,   self.adc_pin_updated),
             (cfg.GPIO_PIN,  cfg.NUM_GPIOS,  self.gpio_pin_updated),
             (cfg.GPIO_CFG,  cfg.NUM_GPIOS,  self.gpio_cfg_updated),
@@ -81,6 +84,10 @@ class IO_Adapter(Device):
         """Converts a pin raw value into its string equivalent."""
         if pin.port > 0:
             return '{:c}{:d}'.format(0x40 + pin.port, pin.pin)
+
+    def led_updated(self, offset, _length):
+        if self.show & Bus.SHOW_COMMANDS:
+            log('LED', ('off', 'on')[self.ctl_bytes[offset]])
 
     def adc_pin_updated(self, offset, length):
         """Called when an adc pin is configurd/unconfigured."""

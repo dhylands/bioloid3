@@ -3,7 +3,7 @@
 """
 
 import select
-
+import socket
 
 class SocketPort(object):
 
@@ -11,6 +11,16 @@ class SocketPort(object):
         self.socket = skt
         self.baud = 0
         self.rx_buf_len = 0
+
+    def enable_keepalive(self):
+        """Enables keep alive packets so we get notified quicker when the other end goes away."""
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        # Set the amount of idle time before a keep alive is sent
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
+        # Interval between keep alives
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
+        # Closes the socket after 3 failed  pings
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
 
     def read_byte(self, block=False):
         """Reads a byte from the bus. This function will return None if
