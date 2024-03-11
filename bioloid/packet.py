@@ -195,8 +195,7 @@ class Packet:
         return str(ErrorCode(self.cmd))
 
     def process_byte(self, byte):
-        """Runs a single byte through the packet parsing state
-        machine.
+        """Runs a single byte through the packet parsing state machine.
 
         Returns ErrorCode.NOT_DONE if the packet is incomplete,
         ErrorCode.NONE if the packet was received successfully, and
@@ -218,14 +217,14 @@ class Packet:
             self.checksum = 0
         elif self.byte_index == 3:  # Length
             self.length = byte
-            # the length includes the length byte and the command, but
-            # does not include the initial 2 0xff's, the device_id or checksum
+            # the length includes the length byte and the cmd/error byte, but
+            # does not count the initial 2 0xff's, the device_id or checksum
             self.pkt_bytes = bytearray(self.length + 4)
             self.pkt_bytes[0] = 0xff
             self.pkt_bytes[1] = 0xff
             self.pkt_bytes[2] = self.dev_id
             self.pkt_bytes[3] = self.length
-        elif self.byte_index == 4:  # Cmd
+        elif self.byte_index == 4:  # Cmd/Error
             self.cmd = byte
             self.pkt_bytes[4] = byte
         elif (self.byte_index + 1) < len(self.pkt_bytes):

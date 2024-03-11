@@ -95,8 +95,7 @@ class Bus:
     def read_status_packet(self):
         """Reads a status packet and returns it.
 
-        Rasises a bioloid.bus.BusError if an error occurs.
-
+           Raises a bioloid.bus.BusError if an error occurs.
         """
         pkt = packet.Packet(status_packet=True)
         while True:
@@ -200,7 +199,7 @@ class Bus:
             else:
                 log('Sending {} to ID {} offset 0x{:02x} len {}'.format(cmd_str, dev_id, offset, len(data)))
         cmd = packet.Command.REG_WRITE if deferred else packet.Command.WRITE
-        pkt_data = bytearray(len(data))
+        pkt_data = bytearray(len(data + 1))
         pkt_data[0] = offset
         pkt_data[1:] = data
         self.fill_and_write_packet(dev_id, cmd, pkt_data)
