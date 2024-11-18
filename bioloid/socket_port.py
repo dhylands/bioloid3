@@ -5,9 +5,11 @@
 import select
 import socket
 
-class SocketPort(object):
 
-    def __init__(self, skt):
+class SocketPort:
+    """Port which uses sockets instead of serial ports."""
+
+    def __init__(self, skt) -> None:
         self.socket = skt
         self.baud = 0
         self.rx_buf_len = 0
@@ -39,6 +41,7 @@ class SocketPort(object):
             data = self.socket.recv(1)
             if data:
                 return data[0]
+        return None
 
     def set_parameters(self, baud, rx_buf_len):
         """Sets the baud rate and the read buffer length.

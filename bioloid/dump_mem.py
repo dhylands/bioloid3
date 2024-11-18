@@ -1,7 +1,7 @@
 """Provides the dump_mem function, which dumps memory in hex/ASCII."""
 
 import sys
-if sys.implementation.name == 'micropython':    # pragma: no cover
+if sys.implementation.name == 'micropython':  # pragma: no cover
     import binascii
 
     def hexlify(buf):
@@ -10,21 +10,29 @@ if sys.implementation.name == 'micropython':    # pragma: no cover
         """
         return binascii.hexlify(buf, ' ')
 else:
+    from typing import Callable, Union
+
     def hexlify(buf):
         """CPython's hexlify doesn't have the notion of a seperator character
            so we just do this the old fashioned way.
         """
-        return bytes(' '.join(['{:02x}'.format(b) for b in buf]), 'ascii')
+        return bytes(' '.join([f'{b:02x}' for b in buf]), 'ascii')
+
 
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
 
 
-def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
-             show_addr=True, log=print):
+def dump_mem(buf: Union[bytearray, bytes, None],
+             prefix: str = '',
+             addr: int = 0,
+             line_width: int = 16,
+             show_ascii: bool = True,
+             show_addr: bool = True,
+             log: Callable[[str], None] = print):
     """Dumps out a hex/ASCII representation of the given buffer."""
-    if line_width < 0:
+    if line_width <= 0:
         line_width = 16
     if len(prefix) > 0:
         prefix += ':'
@@ -34,13 +42,13 @@ def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
     buf_len = len(buf)
     # Use a memoryview to prevent unnecessary allocations
     buf_mv = memoryview(buf)
-    line_ascii = ''
+    #line_ascii = ''
     ascii_offset = 0
 
     prefix_bytes = bytes(prefix, 'utf-8')
     prefix_len = len(prefix_bytes)
     if prefix_len > 0:
-        prefix_len += 1     # For space between prefix and addr
+        prefix_len += 1  # For space between prefix and addr
     max_len = prefix_len
     if show_addr:
         max_len += 6
@@ -51,19 +59,22 @@ def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
         max_len += line_width + 1
     out_line = memoryview(bytearray(max_len))
     if prefix_len > 0:
-        out_line[0:prefix_len-1] = prefix_bytes
-        out_line[prefix_len-1:prefix_len] = b' '
+        out_line[0:prefix_len - 1] = prefix_bytes
+        out_line[prefix_len - 1:prefix_len] = b' '
 
     line_hex = out_line[hex_offset:hex_offset + (line_width * 3)]
     if show_ascii:
         # space between hex and ascii
-        out_line[ascii_offset-1:ascii_offset] = b' '
+        out_line[ascii_offset - 1:ascii_offset] = b' '
         line_ascii = out_line[ascii_offset:ascii_offset + line_width]
+    else:
+        # Keeps the linter happy - doesn't ever get used
+        line_ascii = out_line[0:1]
 
     for offset in range(0, buf_len, line_width):
         if show_addr:
             out_line[prefix_len:prefix_len + 6] \
-                = bytes('{:04x}: '.format(addr), 'ascii')
+                = bytes(f'{addr:04x}: ', 'ascii')
         line_bytes = min(buf_len - offset, line_width)
         line_hex[0:(line_bytes * 3)-1] \
             = hexlify(buf_mv[offset:offset+line_bytes])
@@ -71,7 +82,7 @@ def dump_mem(buf, prefix='', addr=0, line_width=16, show_ascii=True,
         if show_ascii:
             if line_bytes < line_width:
                 for i in range(line_bytes * 3 - 1, line_width * 3):
-                    line_hex[i:i+1] = b' '
+                    line_hex[i:i + 1] = b' '
             line_ascii[0:line_bytes] = buf_mv[offset:offset + line_bytes]
             for i in range(line_bytes):
                 char = line_ascii[i]

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """This is a test program for testing the code out on the host."""
 
 import array
@@ -35,5 +34,5 @@ while True:
     if not byte is None:
         #print('Byte =', byte)
         if crx.process_byte(byte) == CommanderRx.SUCCESS:
-            print('Walk: {:4d}h {:4d}v Look: {:4d}h {:4d}v {:08b}'.format(crx.walkh, crx.walkv, crx.lookh, crx.lookv, crx.button))
-
+            print('Walk: {:4d}h {:4d}v Look: {:4d}h {:4d}v {:08b}'.format(
+                crx.walkh, crx.walkv, crx.lookh, crx.lookv, crx.button))

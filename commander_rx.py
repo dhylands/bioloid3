@@ -2,6 +2,7 @@
 
 from dump_mem import dump_mem
 
+
 class CommanderRx(object):
     """Parses packets from the commmander."""
 
@@ -44,7 +45,7 @@ class CommanderRx(object):
                 self.index = -1
                 if self.checksum & 0xff != 0xff:
                     return CommanderRx.CHECKSUM
-                self.lookv = self.pkt_bytes[0] - 128 # 0 - 255 ==> -128 - 127
+                self.lookv = self.pkt_bytes[0] - 128  # 0 - 255 ==> -128 - 127
                 self.lookh = self.pkt_bytes[1] - 128
                 self.walkv = self.pkt_bytes[2] - 128
                 self.walkh = self.pkt_bytes[3] - 128
@@ -52,4 +53,3 @@ class CommanderRx(object):
                 self.ext = self.pkt_bytes[5]
                 return CommanderRx.SUCCESS
         return CommanderRx.NOT_DONE
-

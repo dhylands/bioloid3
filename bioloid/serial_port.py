@@ -3,10 +3,11 @@ devices through a serial port.
 
 """
 
-import serial
 import select
+import serial
 
-class SerialPort(object):
+
+class SerialPort():
     """Implements a PySerial port for use with the Bioloid Bus.
 
     """
@@ -23,6 +24,7 @@ class SerialPort(object):
                                          dsrdtr=False)
 
     def is_byte_available(self):
+        """Returns true if a bbyte is available to read from the serial port."""
         readable, _, _ = select.select([self.serial_port.fileno()], [], [], 0)
         return bool(readable)
 

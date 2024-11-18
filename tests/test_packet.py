@@ -1,34 +1,40 @@
 #!/usr/bin/env python3
-
-# This file tests the packet parser
+"""
+Tests the packet parser.
+"""
 
 import unittest
 import binascii
 
 from bioloid.packet import Command, ErrorCode, Id, Packet
 
+
 class TestId(unittest.TestCase):
+    """Test predefined IDs"""
 
-    def test_id(self):
-        id = Id(1)
-        self.assertEqual(id.get_dev_id(), 1)
-        self.assertEqual(repr(id), 'Id(0x01)')
-        self.assertEqual(str(id), '0x01')
+    def test_id(self) -> None:
+        """Test predefined IDs"""
+        dev_id = Id(1)
+        self.assertEqual(dev_id.get_dev_id(), 1)
+        self.assertEqual(repr(dev_id), 'Id(0x01)')
+        self.assertEqual(str(dev_id), '0x01')
 
-        id = Id(Id.BROADCAST)
-        self.assertEqual(id.get_dev_id(), 254)
-        self.assertEqual(repr(id), 'Id(0xfe)')
-        self.assertEqual(str(id), 'BROADCAST')
+        dev_id = Id(Id.BROADCAST)
+        self.assertEqual(dev_id.get_dev_id(), 254)
+        self.assertEqual(repr(dev_id), 'Id(0xfe)')
+        self.assertEqual(str(dev_id), 'BROADCAST')
 
-        id = Id(Id.INVALID)
-        self.assertEqual(id.get_dev_id(), 255)
-        self.assertEqual(repr(id), 'Id(0xff)')
-        self.assertEqual(str(id), 'INVALID')
+        dev_id = Id(Id.INVALID)
+        self.assertEqual(dev_id.get_dev_id(), 255)
+        self.assertEqual(repr(dev_id), 'Id(0xff)')
+        self.assertEqual(str(dev_id), 'INVALID')
 
 
 class TestComand(unittest.TestCase):
+    """Tests the packet command"""
 
-    def test_command(self):
+    def test_command(self) -> None:
+        """Tests the packet command"""
         cmd = Command(Command.PING)
         self.assertEqual('Command(0x01)', repr(cmd))
         self.assertEqual('PING', str(cmd))
@@ -40,9 +46,12 @@ class TestComand(unittest.TestCase):
         self.assertEqual(Command.PING, Command.parse('PING'))
         self.assertRaises(ValueError, Command.parse, 'xxx')
 
-class TestErrorCode(unittest.TestCase):
 
-    def test_error_code(self):
+class TestErrorCode(unittest.TestCase):
+    """Tests the packet ErrorCode"""
+
+    def test_error_code(self) -> None:
+        """Tests the packet ErrorCode"""
         err = ErrorCode(ErrorCode.RESERVED)
         self.assertEqual('ErrorCode(0x80)', repr(err))
         self.assertEqual('Reserved', str(err))
@@ -80,13 +89,18 @@ class TestErrorCode(unittest.TestCase):
         self.assertEqual(ErrorCode.CHECKSUM, ErrorCode.parse('CheckSum'))
         self.assertRaises(ValueError, ErrorCode.parse, 'xxx')
 
-class TestPacket(unittest.TestCase):
 
-    def parse_packet(self, data_str, expected_err=ErrorCode.NONE, status_packet=False):
+class TestPacket(unittest.TestCase):
+    """Tests the Packet class"""
+
+    def parse_packet(self,
+                     data_str,
+                     expected_err=ErrorCode.NONE,
+                     status_packet=False) -> Packet:
+        """Parses a packets worth of bytes."""
         data = binascii.unhexlify(data_str.replace(' ', ''))
         pkt = Packet(status_packet=status_packet)
-        for i in range(len(data)):
-            byte = data[i]
+        for i, byte in enumerate(data):
             err = pkt.process_byte(byte)
             if i + 1 == len(data):
                 self.assertEqual(err, expected_err)
@@ -94,10 +108,12 @@ class TestPacket(unittest.TestCase):
                 self.assertEqual(err, ErrorCode.NOT_DONE)
         return pkt
 
-    def test_cmd_bad_checksum(self):
+    def test_cmd_bad_checksum(self) -> None:
+        """Test parsing a bad packet"""
         self.parse_packet('ff ff fe 04 03 03 01 f5', ErrorCode.CHECKSUM)
 
-    def test_cmd_set_id(self):
+    def test_cmd_set_id(self) -> None:
+        """Tests generating a Set device ID  packet"""
         pkt = self.parse_packet('ff ff fe 04 03 03 01 f6')
         self.assertEqual(pkt.dev_id, 0xfe)
         self.assertEqual(pkt.cmd, Command.WRITE)
@@ -106,30 +122,34 @@ class TestPacket(unittest.TestCase):
         self.assertEqual(0x03, pkt.param_byte(0))
         self.assertEqual(0x01, pkt.param_byte(1))
 
-    def test_ping_cmd(self):
+    def test_ping_cmd(self) -> None:
+        """Tests generating a ping packet."""
         pkt = self.parse_packet('ff ff 01 02 01 fb')
         self.assertEqual(pkt.dev_id, 0x01)
         self.assertEqual(pkt.cmd, Command.PING)
         self.assertEqual(pkt.param_len(), 0)
 
-    def test_ping_cmd_checksum(self):
-        pkt = self.parse_packet('ff ff 01 02 01 ff', expected_err=ErrorCode.CHECKSUM)
+    def test_ping_cmd_checksum(self) -> None:
+        """Tests that the parser generates a checksum error."""
+        self.parse_packet('ff ff 01 02 01 ff', expected_err=ErrorCode.CHECKSUM)
 
-    def test_ping_rsp(self):
+    def test_ping_rsp(self) -> None:
+        """Check a ping response"""
         pkt = self.parse_packet('ff ff 01 02 00 fc', status_packet=True)
         self.assertEqual(pkt.dev_id, 0x01)
         self.assertEqual(pkt.error_code(), ErrorCode.NONE)
         self.assertEqual(pkt.param_len(), 0)
 
-    # Error code shouldn't be included in the chuecksum
-    def test_ping_error_rsp(self):
+    def test_ping_error_rsp(self) -> None:
+        """Make sure that the error code isn;t included in the checksum"""
         pkt = self.parse_packet('ff ff 01 02 04 fc', status_packet=True)
         self.assertEqual(pkt.dev_id, 0x01)
         self.assertEqual(pkt.error_code(), ErrorCode.OVERHEATING)
         self.assertEqual(pkt.param_len(), 0)
         self.assertEqual(pkt.error_code_str(), 'OverHeating')
 
-    def test_ping_cmd_noise(self):
+    def test_ping_cmd_noise(self) -> None:
+        """Simulate adding some extra noise bytes before the beginning of the packet"""
         pkt = self.parse_packet('00 ff ff 01 02 01 fb')
         self.assertEqual(pkt.dev_id, 0x01)
         self.assertEqual(pkt.cmd, Command.PING)

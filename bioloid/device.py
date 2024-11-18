@@ -1,36 +1,36 @@
 """Implements a generic bioloid device."""
 
 import os
-import struct
 from bioloid.bus import Bus
 from bioloid.dump_mem import dump_mem
 from bioloid.log import log
 from bioloid import packet
-from binascii import hexlify
 
-class ControlTable(object):
 
-    def __init__(self, num_persistent_bytes, initial_bytes, ctl_bytes, notifications, filename):
+class ControlTable():
+    """Abstracts the control table used in a bioloid device."""
+
+    def __init__(self, params, notifications, filename):
         """Constructor for the control table.
 
-        num_persistent_bytes is the number of bytes which are persisted across power cycles.
-        initial_bytes is a bytearray containing the initial values for the control table.
-        ctl_bytes is a bytearray containing the control table bytes.
+        params is a namedtuple with the following members:
+        params.num_persistent_bytes is the number of bytes which are persisted across power cycles.
+        params.initial_bytes is a bytearray containing the initial values for the control table.
+        params.ctl_bytes is a bytearray containing the control table bytes.
         notifications is a tuple of entries. Each entry contains 3 fields,
           an offset, a length and a function to call when any value in the control
           table between offset to offset+length-1 is modified.
         filename is the name of the file to store the persitent bytes in.
         """
-        self.num_persistent_bytes = num_persistent_bytes
+        self.params = params
         self.filename = filename
-        self.num_ctl_bytes = len(initial_bytes)
-        self.bytes = memoryview(ctl_bytes)
-        self.initial_bytes = initial_bytes
+        self.num_ctl_bytes = len(params.initial_bytes)
+        self.bytes = memoryview(params.ctl_bytes)
         self.notifications = sorted(notifications)
 
         # Reset all of the bytes to their initial values, then possibly
         # overwrite the persisten bytes.
-        self.bytes[:] = self.initial_bytes
+        self.bytes[:] = self.params.initial_bytes
         self.read_from_file()
         self.notify_updates(0, len(self.bytes))
 
@@ -44,30 +44,30 @@ class ControlTable(object):
         """Reads the persistent bytes of the control table from the backing file."""
         try:
             with open(self.filename, 'rb') as f:
-                persistent_bytes = f.read(self.num_persistent_bytes)
-                if len(persistent_bytes) == self.num_persistent_bytes:
+                persistent_bytes = f.read(self.params.num_persistent_bytes)
+                if len(persistent_bytes) == self.params.num_persistent_bytes:
                     self.set_from_bytes(0, persistent_bytes, persist=False)
                     return
                 # If the length doesn't match, then that probably means that
                 # layout of the control table changed. So we'll ignore the file
                 # and revert to initial values.
-        except OSError: # CPython's FileNotFoundError is a subclass of OSError
+        except OSError:  # CPython's FileNotFoundError is a subclass of OSError
             # Unable to read the control table.
             pass
         self.write_to_file()
 
     def reset(self):
         """Resets the control table back to its factory default settings."""
-        self.bytes[:] = self.initial_bytes
+        self.bytes[:] = self.params.initial_bytes
         self.notify_updates(0, len(self.bytes))
         self.write_to_file()
 
-    def set_from_bytes(self, offset, bytes, persist=True):
+    def set_from_bytes(self, offset, src_bytes, persist=True):
         """Sets the register values in the control table from 'data'."""
-        length = len(bytes)
-        self.bytes[offset:offset + length] = bytes
+        length = len(src_bytes)
+        self.bytes[offset:offset + length] = src_bytes
         self.notify_updates(offset, length)
-        if persist and offset < self.num_persistent_bytes:
+        if persist and offset < self.params.num_persistent_bytes:
             self.write_to_file()
 
     def notify_updates(self, offset, length):
@@ -81,55 +81,59 @@ class ControlTable(object):
 
     def write_to_file(self):
         """Writes the persistent bytes of the control table to the backing file."""
-        persistent_bytes = self.get_as_bytes(0, self.num_persistent_bytes)
+        persistent_bytes = self.get_as_bytes(0,
+                                             self.params.num_persistent_bytes)
         with open(self.filename, 'wb') as f:
             f.write(self.bytes[0:len(persistent_bytes)])
 
 
-class Device(object):
+# pylint: disable=too-many-instance-attributes
+class Device():
     """Common code for implementing a Bioloid Device."""
 
-    MODEL_OFFSET    = 0
-    VERSION_OFFSET  = 2
-    DEV_ID_OFFSET   = 3
-    BAUD_OFFSET     = 4
-    RDT_OFFSET      = 5
-    LED             = 0x19
+    MODEL_OFFSET = 0
+    VERSION_OFFSET = 2
+    DEV_ID_OFFSET = 3
+    BAUD_OFFSET = 4
+    RDT_OFFSET = 5
+    LED = 0x19
 
-    INITIAL_DEV_ID  = 0
-    INITIAL_BAUD    = 1     # Corresponds to 1 MBit
-    INITIAL_RDT     = 250   # Corresponds to 500 uSec
+    INITIAL_DEV_ID = 0
+    INITIAL_BAUD = 1  # Corresponds to 1 MBit
+    INITIAL_RDT = 250  # Corresponds to 500 uSec
 
-    def __init__(self, dev_port, num_persistent_bytes, initial_bytes, ctl_bytes, notifications, show=Bus.SHOW_NONE):
+    def __init__(self, dev_port, params, notifications, show=Bus.SHOW_NONE):
         self.dev_port = dev_port
         self.show = show
 
         self.pkt = None
-        self.deffered_offset = 0
+        self.deferred_offset = 0
         self.deferred_length = 0
         self.deferred_params = None
         self.status = 0
 
-        notifications = ((Device.BAUD_OFFSET, 1, self.baud_updated),) + notifications
+        notifications = (
+            (Device.BAUD_OFFSET, 1, self.baud_updated), ) + notifications
 
         ctl_filename = self.filebase() + '.ctl'
         # The unix version of micropython hasn't implemented uname yet
         if hasattr(os, 'uname') and os.uname().sysname == 'pyboard':
             ctl_filename = '/flash/' + ctl_filename
 
-        self.ctl_bytes = memoryview(ctl_bytes)
+        self.ctl_bytes = memoryview(params.ctl_bytes)
 
-        self.control_table = ControlTable(num_persistent_bytes, initial_bytes,
-                                          ctl_bytes, notifications, ctl_filename)
+        self.control_table = ControlTable(params, notifications, ctl_filename)
 
     def set_port(self, dev_port):
         """Allows the port to be specified after creating the device."""
         self.dev_port = dev_port
 
     def baud(self):
+        """Returns the baud byte from the control table."""
         return self.ctl_bytes[Device.BAUD_OFFSET]
 
     def dev_id(self):
+        """Returns the device id from the control table."""
         return self.ctl_bytes[Device.DEV_ID_OFFSET]
 
     def baud_updated(self, _offset, _length):
@@ -140,11 +144,12 @@ class Device(object):
         if self.dev_port.baud != baud:
             self.dev_port.set_parameters(baud, self.dev_port.rx_buf_len)
 
-    def command_action(self, pkt):
+    def command_action(self, _pkt):
         """Called when an ACTION command is received."""
         if self.deferred_params:
             # No status packet sent for ACTION
-            self.control_table.set_from_bytes(self.deferred_offset, self.deferred_params)
+            self.control_table.set_from_bytes(self.deferred_offset,
+                                              self.deferred_params)
         self.deferred_offset = 0
         self.deferred_params = None
 
@@ -170,14 +175,13 @@ class Device(object):
     def command_reg_write(self, pkt):
         """Called when a REG_WRITE (aka deferred WRITE) cmmand is received."""
         offset = pkt.param_byte(0)
-        length = pkt.length - 3
         params = pkt.params()[1:]
         if pkt.dev_id != packet.Id.BROADCAST:
             self.write_status_packet(packet.ErrorCode.NONE)
         self.deferred_offset = offset
         self.deferred_params = params
 
-    def command_reset(self, pkt):
+    def command_reset(self, _pkt):
         """Called when a RESET command is received."""
         self.write_status_packet(packet.ErrorCode.NONE)
         self.control_table.reset()
@@ -191,7 +195,7 @@ class Device(object):
         while idx < len(params):
             dev_id = params[idx]
             if dev_id == self.dev_id():
-                id_params = params[idx+1:idx+1+length]
+                id_params = params[idx + 1:idx + 1 + length]
                 self.control_table.set_from_bytes(offset, id_params)
                 break
             idx += length + 1
@@ -204,7 +208,7 @@ class Device(object):
             self.write_status_packet(packet.ErrorCode.NONE)
         self.control_table.set_from_bytes(offset, params)
 
-    def command_unknown(self, pkt):
+    def command_unknown(self, _pkt):
         """Called when an unknown command is received. If the derived
            class doesn't override this function, then we'll generate a status
            packet with an INSTRUCTION error.
@@ -212,6 +216,7 @@ class Device(object):
         self.write_status_packet(packet.ErrorCode.INSTRUCTION)
 
     def filebase(self):
+        """Default filebase. Derived classes should override this."""
         return 'device'
 
     def packet_received(self, pkt):
@@ -220,7 +225,8 @@ class Device(object):
             # Not a packet for us
             return
         if self.show & Bus.SHOW_COMMANDS:
-            log('Rcvd packet for ID: {} Cmd: {}'.format(pkt.dev_id, packet.Command(pkt.cmd)))
+            log(f'Rcvd packet for ID: {pkt.dev_id} Cmd: {packet.Command(pkt.cmd)}'
+                )
         if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=False, log=log)
         if pkt.cmd == packet.Command.PING:
@@ -278,4 +284,3 @@ class Device(object):
         if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt_bytes, prefix='  W', show_ascii=False, log=log)
         self.dev_port.write_packet(pkt_bytes)
-

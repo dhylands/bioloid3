@@ -3,6 +3,7 @@ import struct
 from bioloid.bus import Bus
 from bioloid.device import Device
 
+
 class FakeServo(Device):
 
     # LED is at offset 0x19
@@ -14,10 +15,9 @@ class FakeServo(Device):
 
         self.ctl_bytes = bytearray(FakeServo.NUM_CTL_BYTES)
 
-        self.notifications = (
-            (Device.LED, 1, self.led_updated),
-        )
-        super().__init__(dev_port, 6, self.initial_bytes, self.ctl_bytes, self.notifications, show)
+        self.notifications = ((Device.LED, 1, self.led_updated), )
+        super().__init__(dev_port, 6, self.initial_bytes, self.ctl_bytes,
+                         self.notifications, show)
 
     def filebase(self):
         return 'fake-servo'

@@ -5,6 +5,7 @@ from bioloid.device import Device
 
 from io_adapter import IO_Adapter
 
+
 class Fake_IO_Adapter(IO_Adapter):
 
     # LED is at offset 0x19

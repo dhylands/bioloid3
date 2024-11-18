@@ -3,39 +3,52 @@
    enountered.
 
 """
+import os
 
 from bioloid import packet
 from bioloid.dump_mem import dump_mem
 from bioloid.log import log
 
+if os.uname().sysname == 'Linux':
+    from typing import Callable, List, Union
+    # Self isn't in typing until 3.11
+    from typing_extensions import Self
+
+    def const(x: int) -> int:
+        """const implementation for linux"""
+        return x
+else:
+    # It turns out that the unix variannt of micropython doesn't have os.uname() by default
+    from micropython import const
+
 
 class BusError(Exception):
     """Exception which is raised when a non-successful status packet is received."""
 
-    def __init__(self, error_code, *args, **kwargs):
-        super(BusError, self).__init__(self, *args, **kwargs)
+    def __init__(self, error_code: int, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.error_code = error_code
 
-    def get_error_code(self):
+    def get_error_code(self) -> int:
         """Retrieves the error code associated with the exception."""
         return self.error_code
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Rcvd Status: " + str(packet.ErrorCode(self.error_code))
 
 
 class Bus:
     """The Bus class knows the commands used to talk to bioloid devices."""
 
-    SHOW_NONE       = 0
-    SHOW_COMMANDS   = (1 << 0)
-    SHOW_PACKETS    = (1 << 1)
+    SHOW_NONE = const(0)
+    SHOW_COMMANDS = const(1 << 0)
+    SHOW_PACKETS = const(1 << 1)
 
-    def __init__(self, serial_port, show=SHOW_NONE):
+    def __init__(self, serial_port, show: int = SHOW_NONE) -> None:
         self.serial_port = serial_port
         self.show = show
 
-    def action(self):
+    def action(self) -> None:
         """Broadcasts an action packet to all of the devices on the bus.
         This causes all of the devices to perform their deferred writes
         at the same time.
@@ -45,7 +58,7 @@ class Bus:
             log('Broadcasting ACTION')
         self.fill_and_write_packet(packet.Id.BROADCAST, packet.Command.ACTION)
 
-    def fill_and_write_packet(self, dev_id, cmd, data=None):
+    def fill_and_write_packet(self, dev_id: int, cmd: int, data=None) -> None:
         """Allocates and fills a packet. data should be a bytearray of data
            to include in the packet, or None if no data should be included.
         """
@@ -56,7 +69,7 @@ class Bus:
         pkt_bytes[0] = 0xff
         pkt_bytes[1] = 0xff
         pkt_bytes[2] = dev_id
-        pkt_bytes[3] = 2       # for len and cmd
+        pkt_bytes[3] = 2  # for len and cmd
         pkt_bytes[4] = cmd
         if data is not None:
             pkt_bytes[3] += len(data)
@@ -66,7 +79,7 @@ class Bus:
             dump_mem(pkt_bytes, prefix='  W', show_ascii=True, log=log)
         self.serial_port.write_packet(pkt_bytes)
 
-    def ping(self, dev_id):
+    def ping(self, dev_id: int) -> bool:
         """Sends a PING request to a device.
 
            Returns true if the device responds successfully, false if a timeout
@@ -83,7 +96,7 @@ class Bus:
             raise ex
         return True
 
-    def read(self, dev_id, offset, num_bytes):
+    def read(self, dev_id: int, offset: int, num_bytes: int) -> bytearray:
         """Sends a READ request and returns data read.
 
            Raises a bus.Error if any errors occur.
@@ -92,7 +105,7 @@ class Bus:
         pkt = self.read_status_packet()
         return pkt.params()
 
-    def read_status_packet(self):
+    def read_status_packet(self) -> packet.Packet:
         """Reads a status packet and returns it.
 
         Rasises a bioloid.bus.BusError if an error occurs.
@@ -105,7 +118,10 @@ class Bus:
                 if self.show & Bus.SHOW_COMMANDS:
                     log('TIMEOUT')
                 if self.show & Bus.SHOW_PACKETS:
-                    dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=True, log=log)
+                    dump_mem(pkt.pkt_bytes,
+                             prefix='  R',
+                             show_ascii=True,
+                             log=log)
                 raise BusError(packet.ErrorCode.TIMEOUT)
             err = pkt.process_byte(byte)
             if err != packet.ErrorCode.NOT_DONE:
@@ -119,14 +135,14 @@ class Bus:
             raise err_ex
         err = pkt.error_code()
         if self.show & Bus.SHOW_COMMANDS:
-            log('Rcvd Status: {} from ID: {}'.format(packet.ErrorCode(err), pkt.dev_id))
+            log(f'Rcvd Status: {packet.ErrorCode(err)} from ID: {pkt.dev_id}')
         if self.show & Bus.SHOW_PACKETS:
             dump_mem(pkt.pkt_bytes, prefix='  R', show_ascii=True, log=log)
         if err != packet.ErrorCode.NONE:
             raise BusError(err)
         return pkt
 
-    def reset(self, dev_id):
+    def reset(self, dev_id: int) -> int:
         """Sends a RESET request.
 
            Raises a bus.Error if any errors occur.
@@ -137,7 +153,11 @@ class Bus:
         pkt = self.read_status_packet()
         return pkt.error_code()
 
-    def scan(self, start_id=0, num_ids=32, dev_found=None, dev_missing=None):
+    def scan(self,
+             start_id: int = 0,
+             num_ids: int = 32,
+             dev_found: Union[Callable[[Self, int], None], None] = None,
+             dev_missing=None) -> bool:
         """Scans the bus, calling devFound(self, dev) for each device
         which responds, and dev_missing(self, dev) for each device
         which doesn't.
@@ -161,7 +181,7 @@ class Bus:
     def send_ping(self, dev_id):
         """Sends a ping to a device."""
         if self.show & Bus.SHOW_COMMANDS:
-            log('Sending PING to ID {}'.format(dev_id))
+            log(f'Sending PING to ID {dev_id}')
         self.fill_and_write_packet(dev_id, packet.Command.PING)
 
     def send_read(self, dev_id, offset, num_bytes):
@@ -169,9 +189,10 @@ class Bus:
         table.
         """
         if self.show & Bus.SHOW_COMMANDS:
-            log('Sending READ to ID {} offset 0x{:02x} len {}'.format(
-                dev_id, offset, num_bytes))
-        self.fill_and_write_packet(dev_id, packet.Command.READ, bytearray((offset, num_bytes)))
+            log(f'Sending READ to ID {dev_id} offset 0x{offset:02x} len {num_bytes}'
+                )
+        self.fill_and_write_packet(dev_id, packet.Command.READ,
+                                   bytearray((offset, num_bytes)))
 
     def send_reset(self, dev_id):
         """Sends a RESET command to the device, which causes it to reset the
@@ -181,10 +202,14 @@ class Bus:
             if dev_id == packet.Id.BROADCAST:
                 log('Broadcasting RESET')
             else:
-                log('Sending RESET to ID {}'.format(dev_id))
+                log(f'Sending RESET to ID {dev_id}')
         self.fill_and_write_packet(dev_id, packet.Command.RESET)
 
-    def send_write(self, dev_id, offset, data, deferred=False):
+    def send_write(self,
+                   dev_id: int,
+                   offset: int,
+                   data: Union[bytearray, bytes],
+                   deferred: bool = False) -> None:
         """Sends a WRITE request if deferred is False, or REG_WRITE
         request if deferred is True to write data into the device's
         control table.
@@ -196,16 +221,19 @@ class Bus:
         if self.show & Bus.SHOW_COMMANDS:
             cmd_str = 'REG_WRITE' if deferred else 'WRITE'
             if dev_id == packet.Id.BROADCAST:
-                log('Broadcasting {} offset 0x{:02x} len {}'.format(cmd_str, offset, len(data)))
+                log(f'Broadcasting {cmd_str} offset 0x{offset:02x} len {len(data)}'
+                    )
             else:
-                log('Sending {} to ID {} offset 0x{:02x} len {}'.format(cmd_str, dev_id, offset, len(data)))
+                log(f'Sending {cmd_str} to ID {dev_id} offset 0x{offset:02x} len {len(data)}'
+                    )
         cmd = packet.Command.REG_WRITE if deferred else packet.Command.WRITE
         pkt_data = bytearray(len(data))
         pkt_data[0] = offset
         pkt_data[1:] = data
         self.fill_and_write_packet(dev_id, cmd, pkt_data)
 
-    def sync_write(self, dev_ids, offset, values):
+    def sync_write(self, dev_ids: List[int], offset: int,
+                   values: List[Union[bytearray, bytes]]) -> None:
         """Sets up a synchroous write command.
 
         dev_ids should be an array of device ids.
@@ -218,11 +246,14 @@ class Bus:
         raises ValueError if the dimensionality of values is incorrect.
         """
         if self.show & Bus.SHOW_COMMANDS:
-            ids = ', '.join(['{}'.format(id) for id in dev_ids])
-            log('Sending SYNC_WRITE to IDs {} offset 0x{:02x} len {}'.format(ids, offset, len(values[0])))
+            ids = ', '.join([f'{id}' for id in dev_ids])
+            log(f'Sending SYNC_WRITE to IDs {ids} offset 0x{offset:02x} len {len(values[0])}'
+                )
         num_ids = len(dev_ids)
         if num_ids != len(values):
-            raise ValueError('len(dev_ids) = {} must match len(values) = {}'.format(num_ids, len(values)))
+            raise ValueError(
+                'len(dev_ids) = {num_ids} must match len(values) = {len(values)}'
+            )
         bytes_per_id = len(values[0])
         param_len = num_ids * (bytes_per_id + 1) + 2
         data = bytearray(param_len)
@@ -231,20 +262,26 @@ class Bus:
         data_idx = 2
         for id_idx in range(num_ids):
             if len(values[id_idx]) != bytes_per_id:
-                raise ValueError('len(values[{}]) not equal {}'.format(id_idx, bytes_per_id))
+                raise ValueError(
+                    f'len(values[{id_idx}]) not equal {bytes_per_id}')
             data[data_idx] = dev_ids[id_idx]
             data_idx += 1
             data[data_idx:data_idx + bytes_per_id] = values[id_idx]
             data_idx += bytes_per_id
 
-        self.fill_and_write_packet(packet.Id.BROADCAST, packet.Command.SYNC_WRITE, data)
+        self.fill_and_write_packet(packet.Id.BROADCAST,
+                                   packet.Command.SYNC_WRITE, data)
 
-    def write(self, dev_id, offset, data, deferred=False):
+    def write(self,
+              dev_id: int,
+              offset: int,
+              data: Union[bytearray, bytes],
+              deferred: bool = False) -> int:
         """Sends a WRITE request if deferred is False, or a REG_WRITE
         request if deferred is True. Deferred writes will occur when
         and ACTION command is broadcast.
 
-        data should be an array of ints, or a bytearray.
+        data should be a bytes object or a bytearray.
 
         Raises a bus.Error if any errors occur.
         """

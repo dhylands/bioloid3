@@ -32,6 +32,7 @@ log_to_uart(repl_uart)
 # go to the uart.
 pyb.repl_uart(repl_uart)
 
+
 class LedSequence:
 
     def __init__(self, led, sequence, continuous=True):
@@ -45,7 +46,8 @@ class LedSequence:
             self.kick()
 
     def process(self):
-        if self.seq_idx >= 0 and pyb.elapsed_millis(self.last_toggle) > self.sequence[self.seq_idx]:
+        if self.seq_idx >= 0 and pyb.elapsed_millis(
+                self.last_toggle) > self.sequence[self.seq_idx]:
             if self.seq_idx & 1 == 1:
                 self.led.on()
             else:
@@ -57,13 +59,14 @@ class LedSequence:
                     self.seq_idx = 0
                 else:
                     self.seq_idx = -1
-                    self.led.off()      # Just in case we got an odd length
+                    self.led.off()  # Just in case we got an odd length
 
     def kick(self):
         if self.seq_idx < 0:
             self.seq_idx = 0
             self.led.on()
             self.last_toggle = pyb.millis()
+
 
 class HeartBeat(LedSequence):
 
@@ -92,7 +95,8 @@ class Scanner(object):
             log('Device {} READ timed out'.format(dev_id))
             return
         model, version = struct.unpack('<HB', data)
-        log('  ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
+        log('  ID: {:3d} Model: {:5d} Version: {:5d}'.format(
+            dev_id, model, version))
         self.ids.append(dev_id)
 
     def scan_range(self, start_id=1, num_ids=32):
@@ -138,11 +142,15 @@ while True:
         if dev.process_byte(byte) == packet.ErrorCode.NONE:
             # We've received a packet. See if it should be forwarded along
             pkt = dev.pkt
-            if pkt.dev_id != dev.dev_id() or pkt.cmd == packet.Command.SYNC_WRITE:
+            if pkt.dev_id != dev.dev_id(
+            ) or pkt.cmd == packet.Command.SYNC_WRITE:
                 activity.kick()
                 device_uart.write_packet(pkt.pkt_bytes)
                 if show & Bus.SHOW_PACKETS:
-                    dump_mem(pkt.pkt_bytes, prefix='  H->D', show_ascii=False, log=log)
+                    dump_mem(pkt.pkt_bytes,
+                             prefix='  H->D',
+                             show_ascii=False,
+                             log=log)
 
     if device_uart.any():
         byte = device_uart.read_byte()
@@ -150,7 +158,10 @@ while True:
             activity.kick()
             host_uart.write_packet(rsp.pkt_bytes)
             if show & Bus.SHOW_PACKETS:
-                dump_mem(rsp.pkt_bytes, prefix='  D->H', show_ascii=False, log=log)
+                dump_mem(rsp.pkt_bytes,
+                         prefix='  D->H',
+                         show_ascii=False,
+                         log=log)
 
     if repl_uart.any():
         byte = repl_uart.readchar()
@@ -179,4 +190,3 @@ while True:
         dev.update_adcs()
         last_update = pyb.millis()
     pyb.wfi()
-

@@ -1,3 +1,5 @@
+.direnv/
+.vscode/
 __pycache__
 *.egg-info
 .coverage

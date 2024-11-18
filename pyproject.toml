@@ -1,0 +1,12 @@
+[tool.pyright]
+include = ["bioloid"]
+
+defineConstant = { DEBUG = true }
+stubPath = "src/stubs"
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonVersion = "3.6"
+pythonPlatform = "Linux"
+

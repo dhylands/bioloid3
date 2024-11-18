@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """This is a test program for testing the code out on the host."""
 
 import os
@@ -9,6 +8,7 @@ import time
 from bioloid.bus import Bus
 
 LED_OFFSET = 0x19
+
 
 class Scanner(object):
 
@@ -23,7 +23,8 @@ class Scanner(object):
         # and 2 so we do it with a single read.
         data = bus.read(dev_id, 0, 3)
         model, version = struct.unpack('<HB', data)
-        print('ID: {:3d} Model: {:5d} Version: {:5d}'.format(dev_id, model, version))
+        print('ID: {:3d} Model: {:5d} Version: {:5d}'.format(
+            dev_id, model, version))
         if model == 12:
             self.ids.append(dev_id)
 
@@ -40,21 +41,22 @@ def test(bus):
     print('Cycle through the LEDs (tests WRITE)')
     for i in range(4):
         for dev_id in scanner.ids:
-            bus.write(dev_id, LED_OFFSET, bytearray((1,)))
+            bus.write(dev_id, LED_OFFSET, bytearray((1, )))
             time.sleep(0.25)
-            bus.write(dev_id, LED_OFFSET, bytearray((0,)))
+            bus.write(dev_id, LED_OFFSET, bytearray((0, )))
             time.sleep(0.25)
 
     time.sleep(1)
 
-    print('Turn all LEDs on and off simultaneously (tests REG_WRITE and ACTION)')
+    print(
+        'Turn all LEDs on and off simultaneously (tests REG_WRITE and ACTION)')
     for i in range(4):
         for dev_id in scanner.ids:
-            bus.write(dev_id, LED_OFFSET, bytearray((1,)), deferred=True)
+            bus.write(dev_id, LED_OFFSET, bytearray((1, )), deferred=True)
         bus.action()
         time.sleep(0.25)
         for dev_id in scanner.ids:
-            bus.write(dev_id, LED_OFFSET, bytearray((0,)), deferred=True)
+            bus.write(dev_id, LED_OFFSET, bytearray((0, )), deferred=True)
         bus.action()
         time.sleep(0.25)
 
@@ -62,10 +64,13 @@ def test(bus):
 
     print('Turn all LEDs on and off simultaneously (tests SYNC_WRITE)')
     for i in range(4):
-        bus.sync_write(scanner.ids, LED_OFFSET, [bytearray((1,))] * len(scanner.ids))
+        bus.sync_write(scanner.ids, LED_OFFSET, [bytearray(
+            (1, ))] * len(scanner.ids))
         time.sleep(0.25)
-        bus.sync_write(scanner.ids, LED_OFFSET, [bytearray((0,))] * len(scanner.ids))
+        bus.sync_write(scanner.ids, LED_OFFSET, [bytearray(
+            (0, ))] * len(scanner.ids))
         time.sleep(0.25)
+
 
 def pyboard_main():
     from bioloid.stm_uart_port import UART_Port
@@ -84,46 +89,40 @@ def linux_main():
         usage="%(prog)s [options] [command]",
         description="Send commands to bioloid devices",
         epilog=("You can specify the default serial port using the " +
-                "BIOLOID_PORT environment variable.")
-    )
-    parser.add_argument(
-        "-b", "--baud",
-        dest="baud",
-        action="store",
-        type=int,
-        help="Set the baudrate used (default = %d)" % default_baud,
-        default=default_baud
-    )
+                "BIOLOID_PORT environment variable."))
+    parser.add_argument("-b",
+                        "--baud",
+                        dest="baud",
+                        action="store",
+                        type=int,
+                        help="Set the baudrate used (default = %d)" %
+                        default_baud,
+                        default=default_baud)
     default_port_help = ""
     if default_port:
         default_port_help = " (default '%s')" % default_port
-    parser.add_argument(
-        "-p", "--port",
-        dest="port",
-        help="Set the serial port to use" + default_port_help,
-        default=default_port
-    )
-    parser.add_argument(
-        "-n", "--net",
-        dest="net",
-        action="store_true",
-        help="Connect to a device using TCP/IP",
-        default=False
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        dest="verbose",
-        action="store_true",
-        help="Turn on verbose messages",
-        default=False
-    )
-    parser.add_argument(
-        "--dummy",
-        dest="dummy",
-        action="store_true",
-        help="Uses DummyPort",
-        default=False
-    )
+    parser.add_argument("-p",
+                        "--port",
+                        dest="port",
+                        help="Set the serial port to use" + default_port_help,
+                        default=default_port)
+    parser.add_argument("-n",
+                        "--net",
+                        dest="net",
+                        action="store_true",
+                        help="Connect to a device using TCP/IP",
+                        default=False)
+    parser.add_argument("-v",
+                        "--verbose",
+                        dest="verbose",
+                        action="store_true",
+                        help="Turn on verbose messages",
+                        default=False)
+    parser.add_argument("--dummy",
+                        dest="dummy",
+                        action="store_true",
+                        help="Uses DummyPort",
+                        default=False)
     args = parser.parse_args(sys.argv[1:])
 
     if args.verbose:
@@ -164,5 +163,6 @@ def main():
     else:
         print("Unrecognized sysname: {}".format(sysname))
         sys.exit()
+
 
 main()

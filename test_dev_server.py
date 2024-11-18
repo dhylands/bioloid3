@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 This program starts a socket and emulates the indicated device(s). Received packets will be sent
 to the device the same as when they're sitting on a serial bus and the replies will be sent back
@@ -15,7 +14,7 @@ from bioloid.device import Device
 from bioloid.socket_port import SocketPort
 
 from fake_servo import FakeServo
-from fake_io_adapter import Fake_IO_Adapter
+#from fake_io_adapter import Fake_IO_Adapter
 
 IP_ADDR = '127.0.0.1'
 IP_PORT = 8888
@@ -24,33 +23,28 @@ SHOW = Bus.SHOW_NONE
 FAKE_SERVO_ID = 1
 IO_ADAPTER_ID = 1
 
+
 def main():
     parser = argparse.ArgumentParser(
         #prog="test_dev_server.py",
         #usage="%(prog)s [options] [command]",
-        description="Simulate Bioloid devices over a network socket",
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        dest="verbose",
-        action="store_true",
-        help="Turn on verbose messages",
-        default=False
-    )
-    parser.add_argument(
-        "--servo",
-        dest="servo",
-        action="store_true",
-        help="Simulate a Servo device",
-        default=False
-    )
-    parser.add_argument(
-        "--io-adapter",
-        dest="io_adapter",
-        action="store_true",
-        help="Simulate an IO_Adapter device",
-        default=False
-    )
+        description="Simulate Bioloid devices over a network socket", )
+    parser.add_argument("-v",
+                        "--verbose",
+                        dest="verbose",
+                        action="store_true",
+                        help="Turn on verbose messages",
+                        default=False)
+    parser.add_argument("--servo",
+                        dest="servo",
+                        action="store_true",
+                        help="Simulate a Servo device",
+                        default=False)
+    parser.add_argument("--io-adapter",
+                        dest="io_adapter",
+                        action="store_true",
+                        help="Simulate an IO_Adapter device",
+                        default=False)
 
     args = parser.parse_args(sys.argv[1:])
 

@@ -1,4 +1,4 @@
-print('tests/__init__.py')
+"""Tests various aspects of the bioloid module."""
 
 from .test_bus import *
 from .test_packet import *

@@ -1,11 +1,14 @@
-"""This module implements the USB_Port class which allows the pyboard to
+# type: ignore          - disabble PyLance for this file.
+# pylint: skip-file     - duisable pylint for this file.
+"""
+This module implements the USB_Port class which allows the pyboard to
 implement bioloid devices using the pyboard's USB Serial.
-
 """
 
 from pyb import USB_VCP
 
-class USB_Port:
+
+class UsbPort:
     """Implements a port which can be used to receive bioloid device commands
     from a host.
     """
@@ -48,4 +51,3 @@ class USB_Port:
     def write_packet(self, packet_data):
         """Writes an entire packet to the serial port."""
         self.usb_serial.write(packet_data)
-

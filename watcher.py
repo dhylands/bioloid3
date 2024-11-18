@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 Implements a watcher process which kills and relaunches a server when any source files change.
 
@@ -13,22 +12,6 @@ import signal
 import sys
 import time
 import traceback
-
-def file_newer_than1(timestamp: float) -> bool:
-    """Recursively ests if any file in the current directory tree is neweer than timestamp."""
-    for root, _, files in os.walk('.'):
-        for file in files:
-            try:
-                filename = os.path.join(root, file)
-                print(filename)
-                if os.path.getmtime(filename) > timestamp:
-                    print('File:', filename, 'was modified')
-                    return True
-            except OSError:
-                # File doesn't exist - this means it was removed bwteen the time os.walk
-                # was called and getmtime was called.
-                pass
-    return False
 
 
 def entry_newer_than(entry: os.DirEntry, timestamp: float) -> bool:
@@ -44,7 +27,8 @@ def entry_newer_than(entry: os.DirEntry, timestamp: float) -> bool:
         return dir_newer_than(entry.path, timestamp)
     try:
         if os.path.getmtime(entry.path) > timestamp:
-            print('===========================================================')
+            print(
+                '===========================================================')
             print('File:', entry.path, 'was modified')
             return True
     except OSError:
@@ -75,7 +59,7 @@ def relaunch():
     return pid
 
 
-def start_watcher(pid):
+def start_watcher(pid) -> None:
     """Starts a file watcher, which shutsdown the server when changes are detected."""
     try:
         print("Watching for changes...")
@@ -90,7 +74,9 @@ def start_watcher(pid):
                 os.waitpid(pid, 0)
                 pid = relaunch()
                 print("Watching for changes...")
-                print('-----------------------------------------------------------')
+                print(
+                    '-----------------------------------------------------------'
+                )
                 start_time = time.time()
                 continue
             exited_pid, _status = os.waitpid(pid, os.WNOHANG)
@@ -98,7 +84,7 @@ def start_watcher(pid):
                 print('Process exited')
                 break
             time.sleep(0.5)
-    except KeyboardInterrupt as exc:  # pylint: disable=broad-exception-caught
+    except KeyboardInterrupt:
         pass
     except Exception as exc:  # pylint: disable=broad-exception-caught
         print(exc)
@@ -106,7 +92,7 @@ def start_watcher(pid):
         print('-----')
 
 
-def main():
+def main() -> None:
     """Main program"""
     pid = relaunch()
     start_watcher(pid)

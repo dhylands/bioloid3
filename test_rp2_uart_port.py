@@ -20,6 +20,7 @@ from bioloid.log import log, log_to_uart
 
 from bioloid.rp2_uart_port import UART_Port
 
+
 class LedSequence:
 
     def __init__(self, led, sequence, continuous=True):
@@ -33,7 +34,9 @@ class LedSequence:
             self.kick()
 
     def process(self):
-        if self.seq_idx >= 0 and time.ticks_diff(time.ticks_ms(), self.last_toggle) > self.sequence[self.seq_idx]:
+        if self.seq_idx >= 0 and time.ticks_diff(
+                time.ticks_ms(),
+                self.last_toggle) > self.sequence[self.seq_idx]:
             self.led.toggle()
             self.last_toggle = time.ticks_ms()
             self.seq_idx += 1
@@ -42,7 +45,7 @@ class LedSequence:
                     self.seq_idx = 0
                 else:
                     self.seq_idx = -1
-                    self.led.off()      # Just in case we got an odd length
+                    self.led.off()  # Just in case we got an odd length
 
     def kick(self):
         if self.seq_idx < 0:
@@ -50,17 +53,22 @@ class LedSequence:
             self.led.on()
             self.last_toggle = time.ticks_ms()
 
+
 class HeartBeat(LedSequence):
 
     def __init__(self, led):
         super().__init__(led, (20, 180, 20, 780), continuous=True)
+
 
 LED = machine.Pin('LED', machine.Pin.OUT)
 
 heartbeat = HeartBeat(LED)
 
 # Open the UARTs so that we assign the correct pins.
-uart0 = machine.UART(0, baudrate=1000000, tx=machine.Pin(12), rx=machine.Pin(13))
+uart0 = machine.UART(0,
+                     baudrate=1000000,
+                     tx=machine.Pin(12),
+                     rx=machine.Pin(13))
 uart1 = machine.UART(1, baudrate=1000000, tx=machine.Pin(8), rx=machine.Pin(9))
 
 uart0_port = UART_Port(0, baud=1000000)
@@ -74,6 +82,7 @@ rsp0 = packet.Packet()
 pkt1 = packet.Packet()
 
 log('rp2_uart_port Test Program')
+
 
 def process_stdin() -> bool:
     ch = sys.stdin.read(1)
@@ -91,6 +100,7 @@ def process_stdin() -> bool:
         return True
     return True
 
+
 def process_bus0(byte):
     """We receive responses on bus0"""
     rc = rsp0.process_byte(byte)
@@ -101,6 +111,7 @@ def process_bus0(byte):
     err_code = rsp0.cmd
     if err_code == packet.ErrorCode.NONE:
         log('0 Got RSP')
+
 
 def process_bus1(byte):
     """We receive commands on bus1"""
@@ -115,7 +126,7 @@ def process_bus1(byte):
         pkt_bytes[0] = 0xff
         pkt_bytes[1] = 0xff
         pkt_bytes[2] = pkt1.dev_id
-        pkt_bytes[3] = 2       # for len and status
+        pkt_bytes[3] = 2  # for len and status
         pkt_bytes[4] = packet.ErrorCode.NONE
         check_sum = pkt_bytes[2] + pkt_bytes[3]
         pkt_bytes[5] = ~check_sum & 0xff

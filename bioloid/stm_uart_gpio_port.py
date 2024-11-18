@@ -1,12 +1,17 @@
-"""This module implements the UART_Port class which talks to bioloid
-devices using a UART on the pyboard.
-
+# type: ignore          - disabble PyLance for this file.
+# pylint: skip-file     - duisable pylint for this file.
 """
+This module implements the UART_Port class which talks to bioloid
+devices using a UART on the pyboard.
+"""
+
+# pylint: skip-file
 
 import stm
 from pyb import UART
 
-class UART_GPIO_Port:
+
+class UartGpioPort:
     """Implements a port which can send or receive commands with a bioloid
     device using the pyboard UART class. This class assumes that there is
     an active HIGH GPIO line used to indicate transmitting (i.e. connected
@@ -19,12 +24,13 @@ class UART_GPIO_Port:
         self.baud = 0
         self.rx_buf_len = 0
         self.set_parameters(baud, rx_buf_len)
-        base_str = 'USART{}'.format(uart_num)
+        base_str = f'USART{uart_num}'.format(uart_num)
         if not hasattr(stm, base_str):
-            base_str = 'UART{}'.format(uart_num)
+            base_str = f'UART{uart_num}'
         self.uart_base = getattr(stm, base_str)
 
-    def any(self):
+    def any(self) -> int:
+        """Returns the number of characters available to be read"""
         return self.uart.any()
 
     def read_byte(self):
@@ -53,22 +59,31 @@ class UART_GPIO_Port:
 
     def write_packet(self, packet_data):
         """Writes an entire packet to the serial port."""
-        _write_packet(self.uart_base, packet_data, len(packet_data), self.control_pin.gpio() & 0x7fffffff, self.control_pin.pin())
+        _write_packet(self.uart_base, packet_data, len(packet_data),
+                      self.control_pin.gpio() & 0x7fffffff,
+                      self.control_pin.pin())
 
 
 TXE_MASK = const(1 << 7)
 TC_MASK = const(1 << 6)
 
+
 @micropython.asm_thumb
 def disable_irq():
+    """Disables interrupts"""
     cpsid(i)
+
 
 @micropython.asm_thumb
 def enable_irq():
+    """Enables insterrupts"""
     cpsie(i)
 
+
 @micropython.viper
-def _write_packet(uart_base: int, data: ptr8, data_len: int, gpio_base: int, pin: int):
+def _write_packet(uart_base: int, data: ptr8, data_len: int, gpio_base: int,
+                  pin: int):
+    """Writes a packet to the serial port."""
     pin_mask = int(1 << pin)
 
     # Enable the external transmit buffer by setting the GPIO line high
